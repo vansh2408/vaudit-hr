@@ -31,6 +31,17 @@ export const hexColorSchema = z
   .string()
   .regex(/^#([0-9a-fA-F]{6})$/, "Expected #RRGGBB hex color");
 
+// Query-string boolean. `z.coerce.boolean()` is the wrong tool here — it
+// runs `Boolean(value)`, so `Boolean("false")` is `true` and any "?flag=false"
+// silently flips to true on the server. Accept only the literal strings
+// "true"/"false" (or a real boolean, for non-URL callers) and reject the rest.
+export const queryBooleanSchema = z
+  .union([
+    z.boolean(),
+    z.enum(["true", "false"]).transform((s) => s === "true"),
+  ])
+  .optional();
+
 export const userRoleSchema = z.enum([
   "EMPLOYEE",
   "HR_ADMIN",
@@ -320,7 +331,7 @@ export const notificationReadSchema = z
 export const notificationsListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
-  unreadOnly: z.coerce.boolean().optional(),
+  unreadOnly: queryBooleanSchema,
 });
 
 // ---------- Generic list filters ----------
@@ -332,5 +343,5 @@ export const leaveListQuerySchema = z.object({
 });
 
 export const employeeListQuerySchema = z.object({
-  includeInactive: z.coerce.boolean().optional(),
+  includeInactive: queryBooleanSchema,
 });
