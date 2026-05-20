@@ -343,9 +343,15 @@ export function LeaveRequestDialog({
                 setDateError(null);
               }}
               hint={
-                workingHalfDays !== null
-                  ? formatDays(workingHalfDays)
-                  : "Weekends can't be picked. Holidays in your range are excluded automatically."
+                workingHalfDays === 0 ? (
+                  <span className="font-medium text-amber-700 dark:text-amber-400">
+                    Every date in your selection is a public holiday — pick a different date.
+                  </span>
+                ) : workingHalfDays !== null ? (
+                  formatDays(workingHalfDays)
+                ) : (
+                  "Weekends can't be picked. Holidays in your range are excluded automatically."
+                )
               }
             />
             {dateError ? (
