@@ -1,5 +1,5 @@
 import * as React from "react";
-import { asc, eq, inArray } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { ClipboardCheck } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -78,7 +78,12 @@ export default async function ApprovalsPage(): Promise<React.JSX.Element> {
     .where(
       inArray(leaveRequests.status, ["PENDING", "PENDING_CANCELLATION"]),
     )
-    .orderBy(asc(leaveRequests.createdAt));
+    // Order by `updatedAt DESC` so:
+    //   - fresh submissions sort to the top (updatedAt == createdAt at insert)
+    //   - edited PENDING requests bubble back up for re-review
+    //   - PENDING_CANCELLATION transitions surface as urgent
+    // Stale untouched rows sink — fine, they have no new info to act on.
+    .orderBy(desc(leaveRequests.updatedAt));
 
   const wfhBase = db
     .select({
@@ -99,7 +104,7 @@ export default async function ApprovalsPage(): Promise<React.JSX.Element> {
     .where(
       inArray(wfhRequests.status, ["PENDING", "PENDING_CANCELLATION"]),
     )
-    .orderBy(asc(wfhRequests.createdAt));
+    .orderBy(desc(wfhRequests.updatedAt));
 
   const [allLeave, allWfh] = await Promise.all([leaveBase, wfhBase]);
 

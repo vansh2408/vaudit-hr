@@ -32,6 +32,7 @@ import { emptyStates } from "@/lib/copy/empty-states";
 import type { RequestStatus } from "@/lib/db/schema";
 import { formatYmdRange, unsafeYmd } from "@/lib/utils/dates";
 import { formatDays } from "@/lib/utils/format-days";
+import { formatInstant, formatRelative } from "@/lib/utils/timezone";
 import { ClipboardCheck } from "lucide-react";
 
 export interface PendingLeaveRow {
@@ -265,6 +266,7 @@ function LeaveApprovalsList({
               <th className="px-3 py-2 text-left">Dates</th>
               <th className="px-3 py-2 text-left">Days</th>
               <th className="px-3 py-2 text-left">Reason</th>
+              <th className="px-3 py-2 text-left">Submitted</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -308,6 +310,12 @@ function LeaveApprovalsList({
                   <td className="px-3 py-2 tabular-nums">{formatDays(row.totalDays)}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {row.reason ?? "—"}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-xs text-muted-foreground tabular-nums"
+                    title={formatInstant(row.createdAt)}
+                  >
+                    {formatRelative(row.createdAt)}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
@@ -510,6 +518,7 @@ function WfhApprovalsList({
               <th className="px-3 py-2 text-left">Dates</th>
               <th className="px-3 py-2 text-left">Days</th>
               <th className="px-3 py-2 text-left">Reason</th>
+              <th className="px-3 py-2 text-left">Submitted</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
           </thead>
@@ -548,6 +557,12 @@ function WfhApprovalsList({
                   <td className="px-3 py-2 tabular-nums">{formatDays(row.totalDays)}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {row.reason ?? "—"}
+                  </td>
+                  <td
+                    className="px-3 py-2 text-xs text-muted-foreground tabular-nums"
+                    title={formatInstant(row.createdAt)}
+                  >
+                    {formatRelative(row.createdAt)}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex justify-end gap-2">
