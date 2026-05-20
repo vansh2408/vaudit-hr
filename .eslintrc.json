@@ -1,0 +1,29 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript", "prettier"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/consistent-type-imports": [
+      "warn",
+      { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+    ],
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.object.callee.property.name='toISOString'][callee.property.name='slice']",
+        "message": "Never extract YMD via .toISOString().slice(0, 10) — it's UTC-based and shifts the day in non-UTC zones. Use localDateToYmd() from @/lib/utils/dates."
+      },
+      {
+        "selector": "NewExpression[callee.name='Date'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value=/^\\d{4}-\\d{2}-\\d{2}$/]",
+        "message": "new Date('YYYY-MM-DD') parses as UTC midnight and breaks in non-UTC zones. Use parseYmd() or ymdToLocalDate() from @/lib/utils/dates."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["lib/utils/dates.ts", "lib/utils/timezone.ts", "tests/**"],
+      "rules": {
+        "no-restricted-syntax": "off"
+      }
+    }
+  ]
+}

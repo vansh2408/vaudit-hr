@@ -1,0 +1,112 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs for the same ref — saves CI minutes on rapid pushes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: lint • typecheck • test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vaudit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/vaudit_test
+      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/vaudit_test
+      NEXTAUTH_SECRET: ci-not-a-real-secret-just-for-tests
+      NEXTAUTH_URL: http://localhost:3000
+      ALLOWED_EMAIL_DOMAINS: vaudit.com,blokid.com
+      GOOGLE_CLIENT_ID: ci-google-id
+      GOOGLE_CLIENT_SECRET: ci-google-secret
+      SLACK_BOT_TOKEN: xoxb-ci-fake
+      SLACK_HR_ADMIN_SLACK_USER_ID: U_TEST_ADMIN
+      CRON_SECRET: ci-cron-secret
+      PLAYWRIGHT_TEST: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      # Drift check: regenerating must produce zero diff against the
+      # committed migrations folder. Catches forgotten `db:generate`.
+      - name: Drizzle schema drift check
+        run: |
+          npm run db:generate
+          if [ -n "$(git status --porcelain lib/db/migrations)" ]; then
+            echo "::error::Drizzle migrations are out of date — run 'npm run db:generate' and commit."
+            git diff lib/db/migrations
+            exit 1
+          fi
+
+      - name: Apply migrations
+        run: npm run db:migrate
+
+      - name: Seed DB
+        run: npm run db:seed
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests (vitest)
+        run: npm test
+
+      # Cache Playwright browsers between runs — saves ~1 minute.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: E2E tests (Playwright)
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

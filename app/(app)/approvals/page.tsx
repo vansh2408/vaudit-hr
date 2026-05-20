@@ -1,0 +1,135 @@
+import * as React from "react";
+import { asc, eq, inArray } from "drizzle-orm";
+
+import { PageShell } from "@/components/page-shell";
+import { TableSkeleton } from "@/components/skeletons";
+import { db } from "@/lib/db";
+import {
+  leaveRequests,
+  leaveTypes,
+  users,
+  wfhRequests,
+} from "@/lib/db/schema";
+import { requireManagerOrAdmin } from "@/lib/auth/guards";
+import { isAdminRole } from "@/lib/api/route-helpers";
+import {
+  ApprovalsClient,
+  type PendingLeaveRow,
+  type PendingWfhRow,
+} from "./approvals-client";
+
+export const metadata = {
+  title: "Approvals",
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function ApprovalsPage(): Promise<React.JSX.Element> {
+  const session = await requireManagerOrAdmin();
+  const reviewerId = session.user.id;
+  const admin = isAdminRole(session.user.role);
+
+  // Admins see every pending request; managers see direct-report's only.
+  // PENDING_CANCELLATION lives in the same queue but is rendered with the
+  // "cancellation request" CTAs — the client distinguishes via row.status.
+  const leaveBase = db
+    .select({
+      id: leaveRequests.id,
+      employeeId: leaveRequests.employeeId,
+      employeeFirstName: users.firstName,
+      employeeLastName: users.lastName,
+      managerId: users.managerId,
+      leaveTypeId: leaveRequests.leaveTypeId,
+      leaveTypeName: leaveTypes.name,
+      startDate: leaveRequests.startDate,
+      endDate: leaveRequests.endDate,
+      totalDays: leaveRequests.totalDays,
+      reason: leaveRequests.reason,
+      status: leaveRequests.status,
+      createdAt: leaveRequests.createdAt,
+    })
+    .from(leaveRequests)
+    .innerJoin(users, eq(users.id, leaveRequests.employeeId))
+    .innerJoin(leaveTypes, eq(leaveTypes.id, leaveRequests.leaveTypeId))
+    .where(
+      inArray(leaveRequests.status, ["PENDING", "PENDING_CANCELLATION"]),
+    )
+    .orderBy(asc(leaveRequests.createdAt));
+
+  const wfhBase = db
+    .select({
+      id: wfhRequests.id,
+      employeeId: wfhRequests.employeeId,
+      employeeFirstName: users.firstName,
+      employeeLastName: users.lastName,
+      managerId: users.managerId,
+      startDate: wfhRequests.startDate,
+      endDate: wfhRequests.endDate,
+      totalDays: wfhRequests.totalDays,
+      reason: wfhRequests.reason,
+      status: wfhRequests.status,
+      createdAt: wfhRequests.createdAt,
+    })
+    .from(wfhRequests)
+    .innerJoin(users, eq(users.id, wfhRequests.employeeId))
+    .where(
+      inArray(wfhRequests.status, ["PENDING", "PENDING_CANCELLATION"]),
+    )
+    .orderBy(asc(wfhRequests.createdAt));
+
+  const [allLeave, allWfh] = await Promise.all([leaveBase, wfhBase]);
+
+  // Reviewers never see their own requests in the queue — self-review is
+  // blocked at the API. Filter here so the buttons don't appear either.
+  const leaveRows: PendingLeaveRow[] = (
+    admin
+      ? allLeave.filter((r) => r.employeeId !== reviewerId)
+      : allLeave.filter(
+          (r) => r.managerId === reviewerId && r.employeeId !== reviewerId,
+        )
+  ).map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    employeeName: `${r.employeeFirstName} ${r.employeeLastName}`,
+    leaveTypeId: r.leaveTypeId,
+    leaveTypeName: r.leaveTypeName,
+    // startDate/endDate are calendar dates (Drizzle mode: "string") — pass
+    // YYYY-MM-DD straight through, no Date conversion.
+    startDate: r.startDate,
+    endDate: r.endDate,
+    totalDays: r.totalDays,
+    reason: r.reason,
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  const wfhRows: PendingWfhRow[] = (
+    admin
+      ? allWfh.filter((r) => r.employeeId !== reviewerId)
+      : allWfh.filter(
+          (r) => r.managerId === reviewerId && r.employeeId !== reviewerId,
+        )
+  ).map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    employeeName: `${r.employeeFirstName} ${r.employeeLastName}`,
+    // Calendar dates pass through; createdAt is an instant.
+    startDate: r.startDate,
+    endDate: r.endDate,
+    totalDays: r.totalDays,
+    reason: r.reason,
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+  }));
+
+  return (
+    <PageShell
+      title="Approvals"
+      description="Review and respond to your team's pending requests."
+    >
+      <React.Suspense fallback={<TableSkeleton rows={6} cols={6} />}>
+        <ApprovalsClient initialLeave={leaveRows} initialWfh={wfhRows} />
+      </React.Suspense>
+    </PageShell>
+  );
+}

@@ -1,0 +1,12 @@
+-- Add PENDING_CANCELLATION to request_status enum.
+--
+-- New status for leave_requests and wfh_requests: set when the owner has
+-- asked to cancel an already-APPROVED request. The manager then approves
+-- or rejects the cancellation via the standard /approvals queue. Balance
+-- refund (for leave) only happens once the cancellation is approved.
+--
+-- Plain ADD VALUE — safe and reversible-by-no-op for existing rows. No
+-- backfill required; no defaults change. Note Postgres restricts
+-- ALTER TYPE ... ADD VALUE inside a transaction block in some versions,
+-- so this file deliberately contains only the single ADD VALUE statement.
+ALTER TYPE "public"."request_status" ADD VALUE IF NOT EXISTS 'PENDING_CANCELLATION';

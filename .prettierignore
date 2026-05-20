@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+build
+coverage
+playwright-report
+test-results
+lib/db/migrations
+ruvector.db
+.claude
+.claude-flow
+.swarm

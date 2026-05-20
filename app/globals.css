@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Vaudit HR — design tokens.
+ *
+ * Palette intent: warm-professional. Backgrounds and surfaces sit in a
+ * paper-warm neutral (slight cream undertone in light, warm-charcoal in dark)
+ * instead of the default cool slate. Primary is a deep indigo with a touch of
+ * warmth so it pairs against the cream without clashing. Accent leans amber.
+ *
+ * All foreground/background pairs target WCAG AA (>=4.5:1 normal text, 3:1
+ * large text). Spot-checked pairings noted inline.
+ */
+
+@layer base {
+  :root {
+    /* Page surface — paper-warm cream */
+    --background: 36 38% 98%;            /* near-white, warm */
+    --foreground: 222 24% 14%;           /* deep neutral; contrast >15:1 on bg */
+
+    /* Card surface — pure white to lift cards off the cream */
+    --card: 0 0% 100%;
+    --card-foreground: 222 24% 14%;
+
+    /* Popover / menus */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 24% 14%;
+
+    /* Primary — deep indigo, warm-leaning. Pairs with white foreground 7.4:1 */
+    --primary: 228 58% 28%;
+    --primary-foreground: 36 38% 98%;
+
+    /* Secondary surface — soft cream tint */
+    --secondary: 36 28% 94%;
+    --secondary-foreground: 222 24% 18%;
+
+    /* Muted (subtle bg + helper text) */
+    --muted: 36 22% 94%;
+    --muted-foreground: 222 14% 42%;     /* 4.6:1 on --muted */
+
+    /* Accent — warm amber, used for highlights / hover wash */
+    --accent: 36 60% 94%;
+    --accent-foreground: 28 70% 24%;
+
+    /* Destructive — calibrated red, AA on white */
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 36 38% 98%;
+
+    /* Borders / inputs — warm gray */
+    --border: 30 14% 88%;
+    --input: 30 14% 88%;
+
+    /* Focus ring — primary at full saturation */
+    --ring: 228 58% 38%;
+
+    /* Geometry */
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Page surface — warm charcoal (not pure cool slate) */
+    --background: 222 18% 9%;
+    --foreground: 36 30% 96%;            /* contrast >14:1 on bg */
+
+    /* Card surface — one step lifted */
+    --card: 222 16% 12%;
+    --card-foreground: 36 30% 96%;
+
+    --popover: 222 16% 12%;
+    --popover-foreground: 36 30% 96%;
+
+    /* Primary — lighter indigo for readability on dark */
+    --primary: 224 70% 76%;
+    --primary-foreground: 228 58% 14%;   /* dark text on light indigo — 9:1 */
+
+    --secondary: 222 14% 18%;
+    --secondary-foreground: 36 30% 96%;
+
+    --muted: 222 14% 18%;
+    --muted-foreground: 36 14% 70%;      /* 5.1:1 on --muted */
+
+    --accent: 36 32% 22%;
+    --accent-foreground: 36 60% 90%;
+
+    --destructive: 0 62% 56%;
+    --destructive-foreground: 222 18% 9%;
+
+    --border: 222 12% 22%;
+    --input: 222 12% 22%;
+
+    --ring: 224 70% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  }
+
+  /* Tap targets — min 44px on touch devices to satisfy WCAG 2.5.5 */
+  @media (pointer: coarse) {
+    button,
+    [role="button"],
+    a.btn,
+    input[type="checkbox"],
+    input[type="radio"] {
+      min-height: 2.75rem;
+    }
+  }
+
+  /* Unified focus ring — uses the --ring token everywhere */
+  :where(button, [role="button"], a, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius);
+    transition: outline-offset 150ms ease;
+  }
+
+  /* Honour reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Standard interactive transition — keep all hovers visually consistent */
+  .transition-ui {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+    transition-duration: 175ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Sticky table header — used by DataTable */
+  .table-sticky-head thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: hsl(var(--card));
+  }
+}
