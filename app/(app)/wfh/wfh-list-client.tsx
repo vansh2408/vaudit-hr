@@ -193,7 +193,7 @@ export function WfhListClient({
           columns={columns}
           data={filtered}
           emptyState={empty}
-          filtering={{ placeholder: "Search by reason or status…" }}
+          filtering={false}
           mobileRender={(row) => (
             <Link
               href={`/wfh/${row.id}`}

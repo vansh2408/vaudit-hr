@@ -143,8 +143,8 @@ export function LeaveListClient({
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
-        id: "reviewer",
-        header: "Reviewer",
+        id: "reviewedAt",
+        header: "Reviewed",
         accessorFn: (row) => row.reviewedById ?? "",
         cell: ({ row }) =>
           row.original.reviewedById ? (
@@ -245,7 +245,7 @@ export function LeaveListClient({
           columns={columns}
           data={filteredItems}
           emptyState={empty}
-          filtering={{ placeholder: "Search by reason or status…" }}
+          filtering={false}
           mobileRender={(row) => (
             <Link
               href={`/leave/${row.id}`}
