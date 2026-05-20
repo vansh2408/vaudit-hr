@@ -22,12 +22,25 @@ type GlobalWithPool = typeof globalThis & {
 
 const globalRef = globalThis as GlobalWithPool;
 
+// Pool sizing — keep VERY low in production. Each warm Vercel lambda
+// owns its own pool; with `max: N` and M lambdas you can hold up to
+// N*M upstream connections. Even with Neon's pgbouncer in front, a
+// high `max` exhausts pooler slots under concurrency (notification
+// polling × users adds up fast). With `max: 1` each lambda holds at
+// most one connection; a Promise.all of N queries serialises through
+// it — a few ms of overhead, not a functional issue.
+// Pair this with the POOLED Neon URL (host has '-pooler') on Vercel.
+const POOL_MAX = process.env["NODE_ENV"] === "production" ? 1 : 5;
+
 const pool: Pool =
   globalRef.__vauditPgPool ??
   new Pool({
     connectionString,
-    max: 10,
-    idleTimeoutMillis: 30_000,
+    max: POOL_MAX,
+    // Drop idle connections aggressively so a warm lambda doesn't
+    // squat on a pooler slot while sitting on a quiet page.
+    idleTimeoutMillis: 10_000,
+    allowExitOnIdle: true,
   });
 
 if (process.env["NODE_ENV"] !== "production") {
