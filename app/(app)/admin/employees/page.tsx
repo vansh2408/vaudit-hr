@@ -2,10 +2,12 @@ import * as React from "react";
 import Link from "next/link";
 import { Upload, UserPlus } from "lucide-react";
 
+import { NoAccess } from "@/components/no-access";
 import { PageShell } from "@/components/page-shell";
 import { TableSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
+import { isAdminRole } from "@/lib/api/route-helpers";
 import { EmployeesListClient } from "./employees-list-client";
 
 export const metadata = {
@@ -13,7 +15,8 @@ export const metadata = {
 };
 
 export default async function EmployeesPage(): Promise<React.JSX.Element> {
-  await requireAdmin();
+  const session = await requireSession();
+  if (!isAdminRole(session.user.role)) return <NoAccess />;
   return (
     <PageShell
       title="Employees"

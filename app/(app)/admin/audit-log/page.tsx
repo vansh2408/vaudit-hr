@@ -1,8 +1,10 @@
 import * as React from "react";
 
+import { NoAccess } from "@/components/no-access";
 import { PageShell } from "@/components/page-shell";
 import { TableSkeleton } from "@/components/skeletons";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
+import { isAdminRole } from "@/lib/api/route-helpers";
 import { AuditLogClient } from "./audit-log-client";
 
 export const metadata = {
@@ -10,7 +12,8 @@ export const metadata = {
 };
 
 export default async function AuditLogPage(): Promise<React.JSX.Element> {
-  await requireAdmin();
+  const session = await requireSession();
+  if (!isAdminRole(session.user.role)) return <NoAccess />;
   return (
     <PageShell
       title="Audit log"

@@ -1,6 +1,8 @@
 import * as React from "react";
 import { asc, eq, inArray } from "drizzle-orm";
+import { ClipboardCheck } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { PageShell } from "@/components/page-shell";
 import { TableSkeleton } from "@/components/skeletons";
 import { db } from "@/lib/db";
@@ -10,7 +12,7 @@ import {
   users,
   wfhRequests,
 } from "@/lib/db/schema";
-import { requireManagerOrAdmin } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
 import { isAdminRole } from "@/lib/api/route-helpers";
 import {
   ApprovalsClient,
@@ -25,9 +27,31 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function ApprovalsPage(): Promise<React.JSX.Element> {
-  const session = await requireManagerOrAdmin();
+  // Use requireSession (not requireManagerOrAdmin) so a regular employee
+  // who lands here — via a typed URL, an old bookmark, or a notification
+  // link gone wrong — sees a friendly empty state instead of the global
+  // "Something went wrong" boundary. The page's data is still scoped to
+  // the viewer's eligibility (manager OR admin); a plain employee just
+  // sees the empty page.
+  const session = await requireSession();
   const reviewerId = session.user.id;
   const admin = isAdminRole(session.user.role);
+  const canReview = admin || session.user.isManager;
+
+  if (!canReview) {
+    return (
+      <PageShell
+        title="Approvals"
+        description="This page shows pending leave and WFH requests waiting for your review."
+      >
+        <EmptyState
+          icon={<ClipboardCheck />}
+          title="No approvals to review"
+          description="You'll see requests here when team members reporting to you submit leave or WFH. HR admins also see every pending request."
+        />
+      </PageShell>
+    );
+  }
 
   // Admins see every pending request; managers see direct-report's only.
   // PENDING_CANCELLATION lives in the same queue but is rendered with the

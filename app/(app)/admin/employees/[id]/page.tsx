@@ -2,10 +2,12 @@ import * as React from "react";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 
+import { NoAccess } from "@/components/no-access";
 import { PageShell } from "@/components/page-shell";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requireSession } from "@/lib/auth/guards";
+import { isAdminRole } from "@/lib/api/route-helpers";
 import { EmployeeEditView } from "./employee-edit-view";
 
 export const metadata = {
@@ -27,7 +29,8 @@ function ymdOrEmpty(s: string | null): string {
 export default async function EditEmployeePage({
   params,
 }: PageProps): Promise<React.JSX.Element> {
-  const session = await requireAdmin();
+  const session = await requireSession();
+  if (!isAdminRole(session.user.role)) return <NoAccess />;
   const rows = await db
     .select()
     .from(users)
