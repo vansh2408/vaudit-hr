@@ -15,15 +15,19 @@ import { ForbiddenError, UnauthorizedError } from "@/lib/auth/guards";
  * user clicks "Withdraw cancellation" but the manager has meanwhile
  * rejected the cancellation, so the row is back to APPROVED.
  *
- * handleRouteError maps this to a 409 with code BAD_STATE so the UI can
- * detect it, show a friendly message, and `router.refresh()` to pick up
- * the new state. Without this, a plain Error throw cascaded to a generic
- * 500 — the user-hostile "something exploded" page.
+ * handleRouteError maps this to a 409 with the carried `code` so the UI
+ * can switch on it. The default code BAD_STATE means "the row drifted
+ * under you, refresh and retry" — the UI handles this by quietly
+ * refetching. Subclasses / explicit codes (e.g. PAST_LEAVE_LOCK) cover
+ * business-rule rejections where refreshing won't help and the user
+ * needs to see the actual reason.
  */
 export class BadStateError extends Error {
   override readonly name = "BadStateError";
-  constructor(message: string) {
+  readonly code: string;
+  constructor(message: string, code: string = "BAD_STATE") {
     super(message);
+    this.code = code;
   }
 }
 
@@ -63,7 +67,7 @@ export function handleRouteError(err: unknown): NextResponse<ApiErrorBody> {
     return apiError(403, "FORBIDDEN", "Insufficient permissions");
   }
   if (err instanceof BadStateError) {
-    return apiError(409, "BAD_STATE", err.message);
+    return apiError(409, err.code, err.message);
   }
   if (err instanceof ZodError) {
     return apiError(400, "VALIDATION_ERROR", "Invalid request body", {

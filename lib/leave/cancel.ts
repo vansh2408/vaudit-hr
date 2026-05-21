@@ -97,10 +97,14 @@ async function loadForUpdate(tx: LeaveTx, id: string): Promise<LeaveRequest> {
 function assertNotStarted(req: LeaveRequest): void {
   // Calendar-date comparison via Ymd strings — TZ-stable, no Date math.
   // "Started" includes today: once today >= start, the day is being consumed.
+  // Uses a dedicated PAST_LEAVE_LOCK code so the UI doesn't mistake this
+  // for a race condition and silently refresh — it's a business rule, not
+  // stale state, and the user needs to see the actual message.
   const today = todayYmd();
   if (req.startDate <= today) {
     throw new BadStateError(
       "Cannot cancel a leave that has already started. Contact an admin if this needs an override.",
+      "PAST_LEAVE_LOCK",
     );
   }
 }

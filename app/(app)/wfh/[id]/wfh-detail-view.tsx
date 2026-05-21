@@ -86,10 +86,10 @@ export function WfhDetailView({
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
 
-  // Stale-state guard — see lib/leave/cancel.ts comments + the leave
-  // detail view for the rationale. Any mutation that can race with a
-  // parallel manager action surfaces BAD_STATE; we refresh the RSC
-  // payload and toast a friendly message instead of erroring out.
+  // Stale-state guard — see the leave detail view for the rationale.
+  // BAD_STATE = "row drifted under you, refresh quietly". Business-rule
+  // codes like PAST_LEAVE_LOCK fall through so the user sees the real
+  // message rather than a misleading "refreshing…" toast.
   function handleStaleState(err: unknown): boolean {
     if (err instanceof ApiError && err.code === "BAD_STATE") {
       toast.info(

@@ -66,10 +66,13 @@ async function loadForUpdate(tx: WfhTx, id: string): Promise<WfhRequest> {
 }
 
 function assertNotStarted(req: WfhRequest): void {
+  // Dedicated PAST_LEAVE_LOCK code mirrors lib/leave/cancel.ts — see the
+  // comment there for why this isn't BAD_STATE.
   const today = todayYmd();
   if (req.startDate <= today) {
     throw new BadStateError(
       "Cannot cancel a WFH request that has already started. Contact an admin for an override.",
+      "PAST_LEAVE_LOCK",
     );
   }
 }

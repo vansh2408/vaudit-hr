@@ -104,12 +104,12 @@ export function LeaveDetailView({
   const router = useRouter();
   const [editOpen, setEditOpen] = React.useState(false);
 
-  // Stale-state guard: any mutation that runs against the request can
-  // race with a manager's parallel action (approve/reject/cancel). If
-  // the server detects the state has drifted it now returns 409
-  // BAD_STATE; we catch that, refresh the RSC payload so the page shows
-  // the current truth, and surface a friendly "this was updated" toast
-  // instead of a generic error.
+  // Stale-state guard: a mutation can race with a manager's parallel
+  // action (approve/reject/cancel). The server returns 409 BAD_STATE
+  // *only* for those state-drift cases; business-rule rejections (e.g.
+  // PAST_LEAVE_LOCK when the leave already started) get their own codes
+  // and fall through to the normal error toast so the user sees the real
+  // reason instead of a misleading "refreshing…" message.
   function handleStaleState(err: unknown): boolean {
     if (err instanceof ApiError && err.code === "BAD_STATE") {
       toast.info(

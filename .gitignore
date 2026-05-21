@@ -54,6 +54,9 @@ next-env.d.ts
 # local databases
 ruvector.db
 
+# pg_dump output (may contain PII — never commit)
+/backups
+
 # AI tooling artifacts (Claude Code / agent runtime — never commit)
 /.claude
 /.claude-flow

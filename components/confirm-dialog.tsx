@@ -59,10 +59,17 @@ export function ConfirmDialog({
   async function handleConfirm(event: React.MouseEvent<HTMLButtonElement>): Promise<void> {
     event.preventDefault();
     if (pending) return;
+    setPending(true);
     try {
-      setPending(true);
       await onConfirm();
       setOpen(false);
+    } catch {
+      // Swallow — the caller's onError (e.g. react-query mutation handler)
+      // is responsible for surfacing the failure via toast. We keep the
+      // dialog open on rejection per the documented contract, and we don't
+      // want the rejection to escape as an unhandled promise (Next.js dev
+      // would surface it as an "Unhandled Runtime Error" even though the
+      // user already saw the toast).
     } finally {
       setPending(false);
     }
