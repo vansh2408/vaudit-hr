@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import {
-  leaveBalances,
   leaveRequests,
   leaveTypes,
   users,
@@ -19,6 +18,10 @@ import {
   type UserRole,
 } from "@/lib/db/schema";
 import { emptyStates } from "@/lib/copy/empty-states";
+import {
+  loadEmployeeBalances,
+  type EmployeeBalanceRow,
+} from "@/lib/leave/balances-query";
 import {
   addDays as addCalendarDays,
   formatYmdHuman,
@@ -33,15 +36,6 @@ interface Props {
   role: UserRole;
   /** True when the viewer has at least one direct report. */
   isManager: boolean;
-}
-
-interface MyBalance {
-  leaveTypeId: string;
-  leaveTypeName: string;
-  allocated: number;
-  used: number;
-  /** False for Unpaid-style leave types — drives the "Unlimited" card UI. */
-  isPaid: boolean;
 }
 
 interface UpcomingLeave {
@@ -69,37 +63,6 @@ function formatDateShort(ymd: Ymd): string {
     day: "numeric",
     year: "numeric",
   });
-}
-
-async function loadMyBalances(userId: string): Promise<MyBalance[]> {
-  const year = new Date().getFullYear();
-  const rows = await db
-    .select({
-      leaveTypeId: leaveBalances.leaveTypeId,
-      leaveTypeName: leaveTypes.name,
-      allocated: leaveBalances.allocated,
-      used: leaveBalances.used,
-      isActive: leaveTypes.isActive,
-      isPaid: leaveTypes.isPaid,
-    })
-    .from(leaveBalances)
-    .innerJoin(leaveTypes, eq(leaveTypes.id, leaveBalances.leaveTypeId))
-    .where(
-      and(
-        eq(leaveBalances.employeeId, userId),
-        eq(leaveBalances.year, year),
-      ),
-    )
-    .orderBy(asc(leaveTypes.name));
-  return rows
-    .filter((r) => r.isActive)
-    .map((r) => ({
-      leaveTypeId: r.leaveTypeId,
-      leaveTypeName: r.leaveTypeName,
-      allocated: r.allocated,
-      used: r.used,
-      isPaid: r.isPaid,
-    }));
 }
 
 async function loadMyPendingCount(userId: string): Promise<number> {
@@ -247,7 +210,7 @@ async function loadTeamOnLeaveToday(
   }));
 }
 
-function MyBalancesGrid({ balances }: { balances: MyBalance[] }): React.JSX.Element {
+function MyBalancesGrid({ balances }: { balances: EmployeeBalanceRow[] }): React.JSX.Element {
   const year = new Date().getFullYear();
   if (balances.length === 0) {
     return (
@@ -408,7 +371,7 @@ export async function DashboardContent({
   isManager,
 }: Props): Promise<React.JSX.Element> {
   const [balances, pendingMine, upcoming] = await Promise.all([
-    loadMyBalances(userId),
+    loadEmployeeBalances(userId),
     loadMyPendingCount(userId),
     loadMyUpcomingLeaves(userId),
   ]);

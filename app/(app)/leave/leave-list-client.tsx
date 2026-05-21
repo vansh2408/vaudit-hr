@@ -45,6 +45,13 @@ interface Props {
   balancesByType: Record<string, MyBalanceLite>;
   currentYear: number;
   holidayDatesYmd: ReadonlyArray<string>;
+  /**
+   * When set, the list is scoped to that employee (admin viewing
+   * someone else's history). The "New request" affordances are hidden
+   * — submitting on behalf isn't a flow this page supports. When
+   * undefined the list shows the caller's own rows.
+   */
+  employeeId?: string;
 }
 
 const STATUS_OPTIONS: ReadonlyArray<RequestStatus> = [
@@ -64,6 +71,7 @@ export function LeaveListClient({
   balancesByType,
   currentYear,
   holidayDatesYmd,
+  employeeId,
 }: Props): React.JSX.Element {
   const params = useSearchParams();
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | RequestStatus>(
@@ -73,21 +81,33 @@ export function LeaveListClient({
   const [yearFilter, setYearFilter] = React.useState<number>(currentYear);
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
+  // "Admin viewing someone else's history" mode — drives both the API
+  // scope and which submit affordances render.
+  const isOtherEmployee = employeeId !== undefined;
+
   React.useEffect(() => {
-    if (params?.get("new") === "1") {
+    // Only the self list honours ?new=1 → open the submit dialog. On the
+    // admin embed there's no dialog to open.
+    if (!isOtherEmployee && params?.get("new") === "1") {
       setDialogOpen(true);
     }
-  }, [params]);
+  }, [params, isOtherEmployee]);
 
   const apiStatus =
     statusFilter === "ALL" ? undefined : (statusFilter as RequestStatus);
 
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.leave.mine(apiStatus),
+    queryKey: isOtherEmployee
+      ? queryKeys.leave.list({
+          employeeId,
+          status: apiStatus,
+        })
+      : queryKeys.leave.mine(apiStatus),
     queryFn: () =>
       listLeave({
         pageSize: 100,
         ...(apiStatus !== undefined && { status: apiStatus }),
+        ...(employeeId !== undefined && { employeeId }),
       }),
   });
 
@@ -189,7 +209,13 @@ export function LeaveListClient({
     return [now - 1, now, now + 1];
   }, [currentYear]);
 
-  const empty = (
+  const empty = isOtherEmployee ? (
+    <EmptyState
+      icon={<CalendarDays />}
+      title="No leave history"
+      description="This employee hasn't submitted any leave requests matching the current filters."
+    />
+  ) : (
     <EmptyState
       icon={<CalendarDays />}
       title={emptyStates.noLeaveRequests.title}
@@ -232,10 +258,12 @@ export function LeaveListClient({
             options={years.map((y) => ({ value: String(y), label: String(y) }))}
           />
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <PlusCircle className="h-4 w-4" aria-hidden />
-          New request
-        </Button>
+        {isOtherEmployee ? null : (
+          <Button onClick={() => setDialogOpen(true)}>
+            <PlusCircle className="h-4 w-4" aria-hidden />
+            New request
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -268,14 +296,16 @@ export function LeaveListClient({
         />
       )}
 
-      <LeaveRequestDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        leaveTypes={leaveTypes}
-        balancesByType={balancesByType}
-        currentYear={currentYear}
-        holidayDatesYmd={holidayDatesYmd}
-      />
+      {isOtherEmployee ? null : (
+        <LeaveRequestDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          leaveTypes={leaveTypes}
+          balancesByType={balancesByType}
+          currentYear={currentYear}
+          holidayDatesYmd={holidayDatesYmd}
+        />
+      )}
     </div>
   );
 }

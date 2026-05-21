@@ -40,10 +40,17 @@ function fmtRange(startYmd: string, endYmd: string): string {
 
 interface WfhListClientProps {
   holidayDatesYmd: ReadonlyArray<string>;
+  /**
+   * When set, the list is scoped to that employee (admin viewing
+   * someone else's history). Submit affordances are hidden. When
+   * undefined the list shows the caller's own rows.
+   */
+  employeeId?: string;
 }
 
 export function WfhListClient({
   holidayDatesYmd,
+  employeeId,
 }: WfhListClientProps): React.JSX.Element {
   const params = useSearchParams();
   const [statusFilter, setStatusFilter] = React.useState<"ALL" | RequestStatus>(
@@ -54,20 +61,28 @@ export function WfhListClient({
   );
   const [dialogOpen, setDialogOpen] = React.useState(false);
 
+  const isOtherEmployee = employeeId !== undefined;
+
   React.useEffect(() => {
-    if (params?.get("new") === "1") {
+    if (!isOtherEmployee && params?.get("new") === "1") {
       setDialogOpen(true);
     }
-  }, [params]);
+  }, [params, isOtherEmployee]);
 
   const apiStatus =
     statusFilter === "ALL" ? undefined : (statusFilter as RequestStatus);
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.wfh.mine(apiStatus),
+    queryKey: isOtherEmployee
+      ? queryKeys.wfh.list({
+          employeeId,
+          status: apiStatus,
+        })
+      : queryKeys.wfh.mine(apiStatus),
     queryFn: () =>
       listWfh({
         pageSize: 100,
         ...(apiStatus !== undefined && { status: apiStatus }),
+        ...(employeeId !== undefined && { employeeId }),
       }),
   });
 
@@ -146,7 +161,13 @@ export function WfhListClient({
     return [now - 1, now, now + 1];
   }, []);
 
-  const empty = (
+  const empty = isOtherEmployee ? (
+    <EmptyState
+      icon={<Laptop />}
+      title="No WFH history"
+      description="This employee hasn't submitted any WFH requests matching the current filters."
+    />
+  ) : (
     <EmptyState
       icon={<Laptop />}
       title="No WFH requests yet"
@@ -180,10 +201,12 @@ export function WfhListClient({
             options={years.map((y) => ({ value: String(y), label: String(y) }))}
           />
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <PlusCircle className="h-4 w-4" aria-hidden />
-          New WFH request
-        </Button>
+        {isOtherEmployee ? null : (
+          <Button onClick={() => setDialogOpen(true)}>
+            <PlusCircle className="h-4 w-4" aria-hidden />
+            New WFH request
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
@@ -216,11 +239,13 @@ export function WfhListClient({
         />
       )}
 
-      <WfhRequestDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        holidayDatesYmd={holidayDatesYmd}
-      />
+      {isOtherEmployee ? null : (
+        <WfhRequestDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          holidayDatesYmd={holidayDatesYmd}
+        />
+      )}
     </div>
   );
 }

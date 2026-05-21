@@ -14,6 +14,7 @@ import {
   Palmtree,
   Scale,
   Users,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,15 @@ export const NAV_ITEMS: ReadonlyArray<NavItem> = [
     href: "/approvals",
     label: "Approvals",
     icon: ClipboardCheck,
+    roles: ["HR_ADMIN", "SUPER_ADMIN"],
+    alsoIfManager: true,
+  },
+
+  // ---- Managers (their team) + HR (all employees) ----
+  {
+    href: "/team",
+    label: "Team",
+    icon: UsersRound,
     roles: ["HR_ADMIN", "SUPER_ADMIN"],
     alsoIfManager: true,
   },

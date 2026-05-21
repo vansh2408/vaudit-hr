@@ -31,10 +31,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const q = parseSearchParams(req.url, leaveListQuerySchema);
     const isAdmin = isAdminRole(session.user.role);
     // Same scope rule as /api/leave — see that route for the rationale.
-    const targetEmployeeId =
-      q.employeeId && (isAdmin || q.employeeId === session.user.id)
-        ? q.employeeId
-        : session.user.id;
+    // Admin OR self OR (caller is the target's direct manager).
+    let targetEmployeeId = session.user.id;
+    if (q.employeeId) {
+      if (isAdmin || q.employeeId === session.user.id) {
+        targetEmployeeId = q.employeeId;
+      } else {
+        const mgr = await db
+          .select({ managerId: users.managerId })
+          .from(users)
+          .where(eq(users.id, q.employeeId))
+          .limit(1);
+        if (mgr[0]?.managerId === session.user.id) {
+          targetEmployeeId = q.employeeId;
+        }
+      }
+    }
     const conds = [eq(wfhRequests.employeeId, targetEmployeeId)];
     if (q.status) conds.push(eq(wfhRequests.status, q.status));
     const where = and(...conds);

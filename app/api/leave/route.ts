@@ -38,13 +38,26 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const isAdmin = isAdminRole(session.user.role);
     // /api/leave is the personal "my time-off" feed. Default scope = the
     // caller's own rows so admins on /leave don't accidentally see every
-    // employee's requests. Admins can still query another employee by
-    // passing ?employeeId=<id>; employees can only pass their own id (the
-    // && check below rejects anything else).
-    const targetEmployeeId =
-      q.employeeId && (isAdmin || q.employeeId === session.user.id)
-        ? q.employeeId
-        : session.user.id;
+    // employee's requests. Admins can query any employee by passing
+    // ?employeeId=<id>; non-admin managers can query *their own direct
+    // reports* (so /team/[id] history works); employees can only pass
+    // their own id. Unauthorized ids silently coerce to self — same
+    // behaviour as before.
+    let targetEmployeeId = session.user.id;
+    if (q.employeeId) {
+      if (isAdmin || q.employeeId === session.user.id) {
+        targetEmployeeId = q.employeeId;
+      } else {
+        const mgr = await db
+          .select({ managerId: users.managerId })
+          .from(users)
+          .where(eq(users.id, q.employeeId))
+          .limit(1);
+        if (mgr[0]?.managerId === session.user.id) {
+          targetEmployeeId = q.employeeId;
+        }
+      }
+    }
     const conds = [eq(leaveRequests.employeeId, targetEmployeeId)];
     if (q.status) conds.push(eq(leaveRequests.status, q.status));
     const where = and(...conds);

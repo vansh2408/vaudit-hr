@@ -1,9 +1,12 @@
 import * as React from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { ExternalLink } from "lucide-react";
 
 import { NoAccess } from "@/components/no-access";
 import { PageShell } from "@/components/page-shell";
+import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { requireSession } from "@/lib/auth/guards";
@@ -53,6 +56,14 @@ export default async function EditEmployeePage({
         >
           ← Back to employees
         </a>
+      }
+      actions={
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/team/${row.id}`}>
+            View leave &amp; WFH activity
+            <ExternalLink className="h-4 w-4" aria-hidden />
+          </Link>
+        </Button>
       }
     >
       <EmployeeEditView
