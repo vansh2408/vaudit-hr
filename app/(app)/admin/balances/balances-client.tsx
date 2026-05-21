@@ -25,6 +25,17 @@ import {
   queryKeys,
   type BalanceRow,
 } from "@/lib/api/queries";
+import { formatDays } from "@/lib/utils/format-days";
+
+// DB rows store day-counts as HALF-DAY UNITS (post-0006): 2 = 1 day, 1 = ½ day.
+// The admin UI edits in DAYS (with 0.5 step) so users see familiar numbers; we
+// convert at the edge — on render in, on save out.
+function halvesToDays(halves: number): number {
+  return halves / 2;
+}
+function daysToHalves(days: number): number {
+  return Math.round(days * 2);
+}
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
@@ -149,11 +160,18 @@ function BalanceRowEditor({
   row: BalanceRow;
   onSaved: () => void;
 }): React.JSX.Element {
-  const [allocated, setAllocated] = React.useState<number>(row.allocated);
-  React.useEffect(() => setAllocated(row.allocated), [row.allocated]);
+  // Edit in days; the row's stored value is in half-day units.
+  const [allocatedDays, setAllocatedDays] = React.useState<number>(
+    halvesToDays(row.allocated),
+  );
+  React.useEffect(
+    () => setAllocatedDays(halvesToDays(row.allocated)),
+    [row.allocated],
+  );
 
-  const dirty = allocated !== row.allocated;
-  const remaining = Math.max(allocated - row.used, 0);
+  const allocatedHalves = daysToHalves(allocatedDays);
+  const dirty = allocatedHalves !== row.allocated;
+  const remainingHalves = Math.max(allocatedHalves - row.used, 0);
 
   const save = useMutation({
     mutationFn: () =>
@@ -161,7 +179,7 @@ function BalanceRowEditor({
         employeeId: row.employeeId,
         leaveTypeId: row.leaveTypeId,
         year: row.year,
-        allocated,
+        allocated: allocatedHalves,
       }),
     onSuccess: () => {
       toast.success(`${row.leaveTypeName} balance updated`);
@@ -182,14 +200,19 @@ function BalanceRowEditor({
           type="number"
           min={0}
           max={366}
-          value={allocated}
-          onChange={(e) => setAllocated(Number(e.target.value))}
+          step={0.5}
+          value={allocatedDays}
+          onChange={(e) =>
+            setAllocatedDays(e.target.value === "" ? 0 : Number(e.target.value))
+          }
           className="ml-auto h-9 w-24 text-right tabular-nums"
           aria-label={`Allocated days for ${row.leaveTypeName}`}
         />
       </td>
-      <td className="px-3 py-2 text-right tabular-nums">{row.used}</td>
-      <td className="px-3 py-2 text-right tabular-nums">{remaining}</td>
+      <td className="px-3 py-2 text-right tabular-nums">{formatDays(row.used)}</td>
+      <td className="px-3 py-2 text-right tabular-nums">
+        {formatDays(remainingHalves)}
+      </td>
       <td className="px-3 py-2 text-right">
         <Button
           size="sm"
