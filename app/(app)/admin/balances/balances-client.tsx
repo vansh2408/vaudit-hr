@@ -160,18 +160,29 @@ function BalanceRowEditor({
   row: BalanceRow;
   onSaved: () => void;
 }): React.JSX.Element {
-  // Edit in days; the row's stored value is in half-day units.
+  // Both fields are editable. Edit in days; the row's stored values are in
+  // half-day units. Remaining is derived and stays read-only — admins
+  // adjust it implicitly by editing allocated or used.
   const [allocatedDays, setAllocatedDays] = React.useState<number>(
     halvesToDays(row.allocated),
   );
+  const [usedDays, setUsedDays] = React.useState<number>(halvesToDays(row.used));
   React.useEffect(
     () => setAllocatedDays(halvesToDays(row.allocated)),
     [row.allocated],
   );
+  React.useEffect(() => setUsedDays(halvesToDays(row.used)), [row.used]);
 
   const allocatedHalves = daysToHalves(allocatedDays);
-  const dirty = allocatedHalves !== row.allocated;
-  const remainingHalves = Math.max(allocatedHalves - row.used, 0);
+  const usedHalves = daysToHalves(usedDays);
+  const allocatedDirty = allocatedHalves !== row.allocated;
+  const usedDirty = usedHalves !== row.used;
+  const dirty = allocatedDirty || usedDirty;
+  // Used must never exceed allocated — block the save and surface a
+  // visible signal. Server enforces the same rule (defence-in-depth).
+  const usedExceedsAllocated = usedHalves > allocatedHalves;
+  const overHalves = usedHalves - allocatedHalves;
+  const remainingHalves = Math.max(allocatedHalves - usedHalves, 0);
 
   const save = useMutation({
     mutationFn: () =>
@@ -179,7 +190,10 @@ function BalanceRowEditor({
         employeeId: row.employeeId,
         leaveTypeId: row.leaveTypeId,
         year: row.year,
-        allocated: allocatedHalves,
+        // Only send fields that changed — the API audit-logs before/after
+        // for each, so omitted fields don't pollute the log entry.
+        ...(allocatedDirty && { allocated: allocatedHalves }),
+        ...(usedDirty && { used: usedHalves }),
       }),
     onSuccess: () => {
       toast.success(`${row.leaveTypeName} balance updated`);
@@ -199,7 +213,7 @@ function BalanceRowEditor({
         <Input
           type="number"
           min={0}
-          max={366}
+          max={183}
           step={0.5}
           value={allocatedDays}
           onChange={(e) =>
@@ -209,15 +223,45 @@ function BalanceRowEditor({
           aria-label={`Allocated days for ${row.leaveTypeName}`}
         />
       </td>
-      <td className="px-3 py-2 text-right tabular-nums">{formatDays(row.used)}</td>
+      <td className="px-3 py-2 text-right">
+        <Input
+          type="number"
+          min={0}
+          max={183}
+          step={0.5}
+          value={usedDays}
+          onChange={(e) =>
+            setUsedDays(e.target.value === "" ? 0 : Number(e.target.value))
+          }
+          aria-invalid={usedExceedsAllocated}
+          aria-describedby={
+            usedExceedsAllocated ? `${row.id}-over` : undefined
+          }
+          className={`ml-auto h-9 w-24 text-right tabular-nums ${
+            usedExceedsAllocated
+              ? "border-destructive focus-visible:ring-destructive"
+              : ""
+          }`}
+          aria-label={`Used days for ${row.leaveTypeName}`}
+        />
+      </td>
       <td className="px-3 py-2 text-right tabular-nums">
-        {formatDays(remainingHalves)}
+        {usedExceedsAllocated ? (
+          <span id={`${row.id}-over`} className="text-destructive">
+            {formatDays(overHalves)} over
+          </span>
+        ) : (
+          formatDays(remainingHalves)
+        )}
       </td>
       <td className="px-3 py-2 text-right">
         <Button
           size="sm"
           variant={dirty ? "default" : "outline"}
-          disabled={!dirty || save.isPending}
+          disabled={!dirty || usedExceedsAllocated || save.isPending}
+          title={
+            usedExceedsAllocated ? "Used cannot exceed allocated" : undefined
+          }
           onClick={() => save.mutate()}
         >
           <Save className="h-3.5 w-3.5" aria-hidden />

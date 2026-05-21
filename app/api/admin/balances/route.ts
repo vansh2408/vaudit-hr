@@ -89,6 +89,20 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       )
       .limit(1);
     const before = existing[0];
+    // Invariant: used must never exceed allocated. Resolve the effective
+    // post-write values (taking the new value where the patch sets it,
+    // else the existing row's value, else 0 for a brand-new row) and
+    // reject the request before any write happens. Mirrors the UI's
+    // save-button guard; this branch protects against direct-API calls.
+    const resolvedAllocated = body.allocated ?? before?.allocated ?? 0;
+    const resolvedUsed = body.used ?? before?.used ?? 0;
+    if (resolvedUsed > resolvedAllocated) {
+      return apiError(
+        400,
+        "USED_EXCEEDS_ALLOCATED",
+        "Used cannot exceed allocated",
+      );
+    }
     if (!before) {
       // Auto-create the row if missing — admins manually allocating before a
       // user has a row for that (year, type).
