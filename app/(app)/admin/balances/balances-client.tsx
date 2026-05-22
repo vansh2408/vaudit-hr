@@ -67,14 +67,38 @@ export function BalancesClient(): React.JSX.Element {
           <Label htmlFor="employee">Employee</Label>
           <Select value={employeeId} onValueChange={setEmployeeId}>
             <SelectTrigger id="employee" aria-label="Employee">
-              <SelectValue placeholder="Pick an employee" />
+              <SelectValue
+                placeholder={
+                  employeesQuery.isLoading
+                    ? "Loading employees…"
+                    : "Pick an employee"
+                }
+              />
             </SelectTrigger>
             <SelectContent>
-              {(employeesQuery.data?.items ?? []).map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.firstName} {e.lastName}
-                </SelectItem>
-              ))}
+              {employeesQuery.isLoading ? (
+                // Non-SelectItem placeholders inside SelectContent — they're
+                // not focusable / selectable, just informational while the
+                // query resolves. The trigger placeholder also swaps so
+                // there's a visual cue before the dropdown is opened.
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                  Loading employees…
+                </div>
+              ) : employeesQuery.isError ? (
+                <div className="px-2 py-1.5 text-sm text-destructive">
+                  Couldn&apos;t load employees. Try again in a moment.
+                </div>
+              ) : (employeesQuery.data?.items ?? []).length === 0 ? (
+                <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                  No active employees
+                </div>
+              ) : (
+                (employeesQuery.data?.items ?? []).map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.firstName} {e.lastName}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
