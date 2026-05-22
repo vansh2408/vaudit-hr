@@ -67,6 +67,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           : body.department !== undefined
             ? sanitizeFreeText(body.department)
             : undefined,
+      // phone/slackUserId are length-checked but not regex-validated, so
+      // crafted markup could otherwise reach Slack DMs / CSV exports
+      // unescaped. Null = explicit clear, undefined = leave unchanged.
+      phone:
+        body.phone === null
+          ? null
+          : body.phone !== undefined
+            ? sanitizeFreeText(body.phone)
+            : undefined,
+      slackUserId:
+        body.slackUserId === null
+          ? null
+          : body.slackUserId !== undefined
+            ? sanitizeFreeText(body.slackUserId)
+            : undefined,
     };
     const existing = await db
       .select({ id: users.id, managerId: users.managerId })
@@ -122,14 +137,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
         ...(safe.firstName !== undefined && { firstName: safe.firstName }),
         ...(safe.lastName !== undefined && { lastName: safe.lastName }),
         ...nameUpdate,
-        ...(body.phone !== undefined && { phone: body.phone }),
+        ...(safe.phone !== undefined && { phone: safe.phone }),
         ...(safe.address !== undefined && { address: safe.address }),
         ...(safe.position !== undefined && { position: safe.position }),
         ...(safe.department !== undefined && { department: safe.department }),
         ...(body.startDate !== undefined && { startDate: body.startDate }),
         ...(body.birthday !== undefined && { birthday: body.birthday }),
         ...(body.managerId !== undefined && { managerId: body.managerId }),
-        ...(body.slackUserId !== undefined && { slackUserId: body.slackUserId }),
+        ...(safe.slackUserId !== undefined && { slackUserId: safe.slackUserId }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
       })
       .where(eq(users.id, ctx.params.id));

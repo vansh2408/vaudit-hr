@@ -73,6 +73,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       address: body.address !== undefined ? sanitizeFreeText(body.address) : undefined,
       position: body.position !== undefined ? sanitizeFreeText(body.position) : undefined,
       department: body.department !== undefined ? sanitizeFreeText(body.department) : undefined,
+      // phone/slackUserId are length-checked but not regex-validated, so a
+      // crafted string with markup would otherwise reach Slack message
+      // bodies / CSV exports unescaped.
+      phone: body.phone !== undefined ? sanitizeFreeText(body.phone) : undefined,
+      slackUserId:
+        body.slackUserId !== undefined ? sanitizeFreeText(body.slackUserId) : undefined,
     };
     // Email uniqueness check first (clearer than relying on DB constraint).
     const dupe = await db
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         name: `${safe.firstName} ${safe.lastName}`,
         firstName: safe.firstName,
         lastName: safe.lastName,
-        ...(body.phone !== undefined && { phone: body.phone }),
+        ...(safe.phone !== undefined && { phone: safe.phone }),
         ...(safe.address !== undefined && { address: safe.address }),
         ...(safe.position !== undefined && { position: safe.position }),
         ...(safe.department !== undefined && { department: safe.department }),
@@ -110,7 +116,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         ...(body.birthday !== undefined && { birthday: body.birthday }),
         role: body.role,
         ...(body.managerId !== undefined && { managerId: body.managerId }),
-        ...(body.slackUserId !== undefined && { slackUserId: body.slackUserId }),
+        ...(safe.slackUserId !== undefined && { slackUserId: safe.slackUserId }),
         isActive: true,
       });
       const year = new Date().getFullYear();

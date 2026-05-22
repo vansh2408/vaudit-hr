@@ -14,7 +14,7 @@ import {
   leaveRequestEditSchema,
   leaveRequestReviewSchema,
 } from "@/lib/validation/common";
-import { apiError, handleRouteError } from "@/lib/api/errors";
+import { apiError, BadStateError, handleRouteError } from "@/lib/api/errors";
 import { isAdminRole } from "@/lib/api/route-helpers";
 import { checkBalance, consumeBalance } from "@/lib/leave/balance";
 import { calcWorkingHalfDays } from "@/lib/leave/working-days";
@@ -111,12 +111,32 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const isAdmin = isAdminRole(session.user.role);
     const isMgr = row.empManagerId === session.user.id;
     if (!isAdmin && !isMgr) return apiError(403, "FORBIDDEN", "Only manager or admin may review");
-    if (row.req.status !== "PENDING") return apiError(409, "BAD_STATE", `Cannot review ${row.req.status} request`);
     const newStatus = body.action === "APPROVE" ? "APPROVED" : "REJECTED";
-    const year = ymdYear(unsafeYmd(row.req.startDate));
-    await db.transaction(async (tx) => {
+    // Lock the row + re-check status inside the transaction so concurrent
+    // approvers can't both pass the PENDING gate on stale reads and
+    // double-consume balance / double-notify. The cancel-workflow paths
+    // already do this; this is the matching guard for primary APPROVE/REJECT.
+    const totalHalfDays = await db.transaction(async (tx) => {
+      const locked = await tx
+        .select({
+          status: leaveRequests.status,
+          employeeId: leaveRequests.employeeId,
+          leaveTypeId: leaveRequests.leaveTypeId,
+          totalDays: leaveRequests.totalDays,
+          startDate: leaveRequests.startDate,
+        })
+        .from(leaveRequests)
+        .where(eq(leaveRequests.id, ctx.params.id))
+        .for("update")
+        .limit(1);
+      const cur = locked[0];
+      if (!cur) throw new BadStateError("Leave request not found", "NOT_FOUND");
+      if (cur.status !== "PENDING") {
+        throw new BadStateError(`Cannot review ${cur.status} request`);
+      }
       if (newStatus === "APPROVED") {
-        await consumeBalance(row.req.employeeId, row.req.leaveTypeId, row.req.totalDays, year, tx);
+        const year = ymdYear(unsafeYmd(cur.startDate));
+        await consumeBalance(cur.employeeId, cur.leaveTypeId, cur.totalDays, year, tx);
       }
       await tx
         .update(leaveRequests)
@@ -127,19 +147,20 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
           ...(safeNote !== undefined && { reviewerNote: safeNote }),
         })
         .where(eq(leaveRequests.id, ctx.params.id));
+      return cur.totalDays;
     });
     await writeAuditLog({
       actorId: session.user.id,
       action: newStatus === "APPROVED" ? "leave.approve" : "leave.reject",
       targetTable: "leave_requests",
       targetId: ctx.params.id,
-      metadata: { employeeId: row.req.employeeId, totalDays: row.req.totalDays },
+      metadata: { employeeId: row.req.employeeId, totalHalfDays },
     });
     await notifyEmployee({
       employeeId: row.req.employeeId,
       slackUserId: row.empSlackUserId ?? null,
       type: newStatus === "APPROVED" ? "leave.approved" : "leave.rejected",
-      message: `Your leave request (${formatDays(row.req.totalDays)}) was ${newStatus.toLowerCase()}.`,
+      message: `Your leave request (${formatDays(totalHalfDays)}) was ${newStatus.toLowerCase()}.`,
       link: `/leave/${ctx.params.id}`,
       ...(safeNote !== undefined && { userContent: safeNote }),
     });
@@ -253,36 +274,46 @@ async function handleLeaveEdit(
   if (!bal.ok) {
     return apiError(400, "INSUFFICIENT_BALANCE", bal.reason ?? "Insufficient balance");
   }
-  // Overlap check excluding the row being edited (so it doesn't conflict
-  // with itself).
-  const overlap = await findOverlap({
-    employeeId: actorId,
-    startDate: body.startDate,
-    endDate: body.endDate,
-    isHalfDay: body.isHalfDay,
-    halfDaySlot: body.halfDaySlot ?? null,
-    excludeRequestId: id,
-    excludeKind: "leave",
+  // Overlap-check + update inside the same tx so a concurrent insert
+  // from this same employee can't slip in between the pre-check and the
+  // edit. excludeRequestId stops the row from conflicting with itself.
+  const editResult = await db.transaction<
+    { kind: "ok" } | { kind: "overlap"; with: "leave" | "wfh" }
+  >(async (tx) => {
+    const overlap = await findOverlap(
+      {
+        employeeId: actorId,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        isHalfDay: body.isHalfDay,
+        halfDaySlot: body.halfDaySlot ?? null,
+        excludeRequestId: id,
+        excludeKind: "leave",
+      },
+      tx,
+    );
+    if (overlap) return { kind: "overlap", with: overlap.kind };
+    await tx
+      .update(leaveRequests)
+      .set({
+        leaveTypeId: body.leaveTypeId,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        totalDays: newTotalHalfDays,
+        reason: safeReason,
+        isHalfDay: body.isHalfDay,
+        halfDaySlot: body.halfDaySlot ?? null,
+      })
+      .where(eq(leaveRequests.id, id));
+    return { kind: "ok" };
   });
-  if (overlap) {
+  if (editResult.kind === "overlap") {
     return apiError(
       409,
       "OVERLAPPING_REQUEST",
-      `You already have a ${overlap.kind === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
+      `You already have a ${editResult.with === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
     );
   }
-  await db
-    .update(leaveRequests)
-    .set({
-      leaveTypeId: body.leaveTypeId,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      totalDays: newTotalHalfDays,
-      reason: safeReason,
-      isHalfDay: body.isHalfDay,
-      halfDaySlot: body.halfDaySlot ?? null,
-    })
-    .where(eq(leaveRequests.id, id));
   await writeAuditLog({
     actorId,
     action: "leave.edit",
@@ -293,7 +324,7 @@ async function handleLeaveEdit(
         leaveTypeId: row.req.leaveTypeId,
         startDate: row.req.startDate,
         endDate: row.req.endDate,
-        totalDays: row.req.totalDays,
+        totalHalfDays: row.req.totalDays,
         reason: row.req.reason,
         isHalfDay: row.req.isHalfDay,
         halfDaySlot: row.req.halfDaySlot,
@@ -302,7 +333,7 @@ async function handleLeaveEdit(
         leaveTypeId: body.leaveTypeId,
         startDate: body.startDate,
         endDate: body.endDate,
-        totalDays: newTotalHalfDays,
+        totalHalfDays: newTotalHalfDays,
         reason: safeReason,
         isHalfDay: body.isHalfDay,
         halfDaySlot: body.halfDaySlot ?? null,

@@ -131,21 +131,26 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // leave OR WFH row on the same date+slot is a conflict. See
     // lib/leave/overlap.ts for the full ruleset (half × full = conflict;
     // same slot = conflict; different slots = OK).
-    const overlap = await findOverlap({
-      employeeId: session.user.id,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      isHalfDay: body.isHalfDay,
-      halfDaySlot: body.halfDaySlot ?? null,
-    });
-    if (overlap) {
-      return apiError(
-        409,
-        "OVERLAPPING_REQUEST",
-        `You already have a ${overlap.kind === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
+    //
+    // The overlap probe runs INSIDE the insert tx so two simultaneous
+    // POSTs for the same employee + same slot can't both pass a stale
+    // pre-check and both insert. Drizzle's tx serialises the reads
+    // against the row lock the insert will hold.
+    const insertOrError = await db.transaction<
+      | { kind: "ok"; id: string }
+      | { kind: "overlap"; with: "leave" | "wfh" }
+    >(async (tx) => {
+      const overlap = await findOverlap(
+        {
+          employeeId: session.user.id,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          isHalfDay: body.isHalfDay,
+          halfDaySlot: body.halfDaySlot ?? null,
+        },
+        tx,
       );
-    }
-    const insertResult = await db.transaction(async (tx) => {
+      if (overlap) return { kind: "overlap", with: overlap.kind };
       const inserted = await tx
         .insert(leaveRequests)
         .values({
@@ -160,9 +165,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           halfDaySlot: body.halfDaySlot ?? null,
         })
         .returning({ id: leaveRequests.id });
-      return inserted[0];
+      const row = inserted[0];
+      if (!row) throw new Error("INSERT_FAILED");
+      return { kind: "ok", id: row.id };
     });
-    if (!insertResult) return apiError(500, "INSERT_FAILED", "Insert returned no row");
+    if (insertOrError.kind === "overlap") {
+      return apiError(
+        409,
+        "OVERLAPPING_REQUEST",
+        `You already have a ${insertOrError.with === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
+      );
+    }
+    const insertResult = { id: insertOrError.id };
     await writeAuditLog({
       actorId: session.user.id,
       action: "leave.create",

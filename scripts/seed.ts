@@ -88,46 +88,51 @@ const SEED_USERS: SeedUser[] = [
 // lib/leave/balance.ts). Changing values here only affects rows created
 // AFTER the next seed/insert; existing employees are migrated via
 // scripts/apply-leave-policy-2026.ts.
+//
+// Values are in HALF-DAY UNITS (post-0006/0007 — 2 = 1 day). They are
+// copied directly into `leave_balances.allocated` on new-employee
+// creation, which is also a half-day column. The description prose keeps
+// the human "days per year" framing.
 const SEED_LEAVE_TYPES: SeedLeaveType[] = [
   {
     name: "Holiday Leave",
     description: "Holiday leave — 13 days per year",
-    defaultBalance: 13,
+    defaultBalance: 26,
     isPaid: true,
     color: "#f59e0b",
   },
   {
     name: "Annual",
     description: "Annual leave — 10 days per year",
-    defaultBalance: 10,
+    defaultBalance: 20,
     isPaid: true,
     color: "#2563eb",
   },
   {
     name: "Sick",
     description: "Sick leave — 30 days per year",
-    defaultBalance: 30,
+    defaultBalance: 60,
     isPaid: true,
     color: "#dc2626",
   },
   {
     name: "Personal",
     description: "Personal leave — 3 days per year",
-    defaultBalance: 3,
+    defaultBalance: 6,
     isPaid: true,
     color: "#10b981",
   },
   {
     name: "Paternity",
     description: "Paternity leave — 120 days per year",
-    defaultBalance: 120,
+    defaultBalance: 240,
     isPaid: true,
     color: "#0ea5e9",
   },
   {
     name: "Maternity",
     description: "Maternity leave — 15 days per year",
-    defaultBalance: 15,
+    defaultBalance: 30,
     isPaid: true,
     color: "#ec4899",
   },

@@ -95,35 +95,48 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
     // Overlap: same-slot leave or WFH on any covered date is rejected.
-    const overlap = await findOverlap({
-      employeeId: session.user.id,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      isHalfDay: body.isHalfDay,
-      halfDaySlot: body.halfDaySlot ?? null,
+    // Runs inside the insert tx so two simultaneous POSTs can't both pass
+    // a stale pre-check — see app/api/leave/route.ts for the rationale.
+    const insertOrError = await db.transaction<
+      | { kind: "ok"; id: string }
+      | { kind: "overlap"; with: "leave" | "wfh" }
+    >(async (tx) => {
+      const overlap = await findOverlap(
+        {
+          employeeId: session.user.id,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          isHalfDay: body.isHalfDay,
+          halfDaySlot: body.halfDaySlot ?? null,
+        },
+        tx,
+      );
+      if (overlap) return { kind: "overlap", with: overlap.kind };
+      const inserted = await tx
+        .insert(wfhRequests)
+        .values({
+          employeeId: session.user.id,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          totalDays: totalHalfDays,
+          ...(safeReason !== undefined && { reason: safeReason }),
+          status: "PENDING",
+          isHalfDay: body.isHalfDay,
+          halfDaySlot: body.halfDaySlot ?? null,
+        })
+        .returning({ id: wfhRequests.id });
+      const inner = inserted[0];
+      if (!inner) throw new Error("INSERT_FAILED");
+      return { kind: "ok", id: inner.id };
     });
-    if (overlap) {
+    if (insertOrError.kind === "overlap") {
       return apiError(
         409,
         "OVERLAPPING_REQUEST",
-        `You already have a ${overlap.kind === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
+        `You already have a ${insertOrError.with === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
       );
     }
-    const inserted = await db
-      .insert(wfhRequests)
-      .values({
-        employeeId: session.user.id,
-        startDate: body.startDate,
-        endDate: body.endDate,
-        totalDays: totalHalfDays,
-        ...(safeReason !== undefined && { reason: safeReason }),
-        status: "PENDING",
-        isHalfDay: body.isHalfDay,
-        halfDaySlot: body.halfDaySlot ?? null,
-      })
-      .returning({ id: wfhRequests.id });
-    const row = inserted[0];
-    if (!row) return apiError(500, "INSERT_FAILED", "Insert returned no row");
+    const row = { id: insertOrError.id };
     await writeAuditLog({
       actorId: session.user.id,
       action: "wfh.create",

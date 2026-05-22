@@ -170,9 +170,13 @@ export async function cancelLeaveRequest(
         action: "leave.cancel_requested",
         targetTable: "leave_requests",
         targetId: req.id,
+        // `totalHalfDays` matches the column's unit (post-0006). The older
+        // `totalDays` key in pre-existing audit rows also stored half-days
+        // despite the name; standardising forward writes avoids analyst
+        // confusion.
         metadata: {
           employeeId: req.employeeId,
-          totalDays: req.totalDays,
+          totalHalfDays: req.totalDays,
           reviewedById: req.reviewedById,
         },
       });
@@ -261,6 +265,12 @@ export async function approveLeaveCancellation(
         `Cannot approve cancellation: request is ${req.status}, expected PENDING_CANCELLATION`,
       );
     }
+    // If the leave has already started while the cancellation sat in the
+    // queue, refunding now would over-credit the employee — they've
+    // already consumed those days. Block the approval; the manager can
+    // still REJECT the cancellation (no refund, no change of state needed
+    // beyond reverting to APPROVED) to close out the row.
+    assertNotStarted(req);
     const year = ymdYear(unsafeYmd(req.startDate));
     await refundBalance(req.employeeId, req.leaveTypeId, req.totalDays, year, tx);
     await tx
@@ -284,7 +294,7 @@ export async function approveLeaveCancellation(
     targetId: requestId,
     metadata: {
       employeeId: result.employeeId,
-      totalDays: result.totalDays,
+      totalHalfDays: result.totalDays,
       ...(reviewerNote !== undefined && reviewerNote.length > 0
         ? { reviewerNote }
         : {}),

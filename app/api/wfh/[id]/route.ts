@@ -14,7 +14,7 @@ import {
   wfhRequestEditSchema,
   wfhRequestReviewSchema,
 } from "@/lib/validation/common";
-import { apiError, handleRouteError } from "@/lib/api/errors";
+import { apiError, BadStateError, handleRouteError } from "@/lib/api/errors";
 import { isAdminRole } from "@/lib/api/route-helpers";
 import { calcWorkingHalfDays } from "@/lib/leave/working-days";
 import { findOverlap } from "@/lib/leave/overlap";
@@ -106,29 +106,49 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     const isAdmin = isAdminRole(session.user.role);
     const isMgr = row.empManagerId === session.user.id;
     if (!isAdmin && !isMgr) return apiError(403, "FORBIDDEN", "Only manager or admin may review");
-    if (row.req.status !== "PENDING") return apiError(409, "BAD_STATE", `Cannot review ${row.req.status} request`);
     const newStatus = body.action === "APPROVE" ? "APPROVED" : "REJECTED";
-    await db
-      .update(wfhRequests)
-      .set({
-        status: newStatus,
-        reviewedById: session.user.id,
-        reviewedAt: new Date(),
-        ...(safeNote !== undefined && { reviewerNote: safeNote }),
-      })
-      .where(eq(wfhRequests.id, ctx.params.id));
+    // Lock + status-recheck inside the tx — mirrors /api/leave/[id]. WFH
+    // doesn't consume balance, so the bite is "double-notify + double
+    // audit-entry" rather than a balance bug, but the discipline keeps
+    // both routes consistent.
+    const totalHalfDays = await db.transaction(async (tx) => {
+      const locked = await tx
+        .select({
+          status: wfhRequests.status,
+          totalDays: wfhRequests.totalDays,
+        })
+        .from(wfhRequests)
+        .where(eq(wfhRequests.id, ctx.params.id))
+        .for("update")
+        .limit(1);
+      const cur = locked[0];
+      if (!cur) throw new BadStateError("WFH request not found", "NOT_FOUND");
+      if (cur.status !== "PENDING") {
+        throw new BadStateError(`Cannot review ${cur.status} request`);
+      }
+      await tx
+        .update(wfhRequests)
+        .set({
+          status: newStatus,
+          reviewedById: session.user.id,
+          reviewedAt: new Date(),
+          ...(safeNote !== undefined && { reviewerNote: safeNote }),
+        })
+        .where(eq(wfhRequests.id, ctx.params.id));
+      return cur.totalDays;
+    });
     await writeAuditLog({
       actorId: session.user.id,
       action: newStatus === "APPROVED" ? "wfh.approve" : "wfh.reject",
       targetTable: "wfh_requests",
       targetId: ctx.params.id,
-      metadata: { employeeId: row.req.employeeId },
+      metadata: { employeeId: row.req.employeeId, totalHalfDays },
     });
     await notifyEmployee({
       employeeId: row.req.employeeId,
       slackUserId: row.empSlackUserId ?? null,
       type: newStatus === "APPROVED" ? "wfh.approved" : "wfh.rejected",
-      message: `Your WFH request (${formatDays(row.req.totalDays)}) was ${newStatus.toLowerCase()}.`,
+      message: `Your WFH request (${formatDays(totalHalfDays)}) was ${newStatus.toLowerCase()}.`,
       link: `/wfh/${ctx.params.id}`,
       ...(safeNote !== undefined && { userContent: safeNote }),
     });
@@ -171,33 +191,44 @@ async function handleWfhEdit(
       "Selected range has no working days (weekends/holidays only).",
     );
   }
-  const overlap = await findOverlap({
-    employeeId: actorId,
-    startDate: body.startDate,
-    endDate: body.endDate,
-    isHalfDay: body.isHalfDay,
-    halfDaySlot: body.halfDaySlot ?? null,
-    excludeRequestId: id,
-    excludeKind: "wfh",
+  // Overlap-check + update in the same tx — see app/api/leave/[id]/route.ts
+  // for the rationale; same pattern keeps both edit paths consistent.
+  const editResult = await db.transaction<
+    { kind: "ok" } | { kind: "overlap"; with: "leave" | "wfh" }
+  >(async (tx) => {
+    const overlap = await findOverlap(
+      {
+        employeeId: actorId,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        isHalfDay: body.isHalfDay,
+        halfDaySlot: body.halfDaySlot ?? null,
+        excludeRequestId: id,
+        excludeKind: "wfh",
+      },
+      tx,
+    );
+    if (overlap) return { kind: "overlap", with: overlap.kind };
+    await tx
+      .update(wfhRequests)
+      .set({
+        startDate: body.startDate,
+        endDate: body.endDate,
+        totalDays: newTotalHalfDays,
+        reason: safeReason,
+        isHalfDay: body.isHalfDay,
+        halfDaySlot: body.halfDaySlot ?? null,
+      })
+      .where(eq(wfhRequests.id, id));
+    return { kind: "ok" };
   });
-  if (overlap) {
+  if (editResult.kind === "overlap") {
     return apiError(
       409,
       "OVERLAPPING_REQUEST",
-      `You already have a ${overlap.kind === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
+      `You already have a ${editResult.with === "leave" ? "leave" : "WFH"} request covering that ${body.isHalfDay ? "slot" : "date range"}`,
     );
   }
-  await db
-    .update(wfhRequests)
-    .set({
-      startDate: body.startDate,
-      endDate: body.endDate,
-      totalDays: newTotalHalfDays,
-      reason: safeReason,
-      isHalfDay: body.isHalfDay,
-      halfDaySlot: body.halfDaySlot ?? null,
-    })
-    .where(eq(wfhRequests.id, id));
   await writeAuditLog({
     actorId,
     action: "wfh.edit",
@@ -207,7 +238,7 @@ async function handleWfhEdit(
       before: {
         startDate: row.req.startDate,
         endDate: row.req.endDate,
-        totalDays: row.req.totalDays,
+        totalHalfDays: row.req.totalDays,
         reason: row.req.reason,
         isHalfDay: row.req.isHalfDay,
         halfDaySlot: row.req.halfDaySlot,
@@ -215,7 +246,7 @@ async function handleWfhEdit(
       after: {
         startDate: body.startDate,
         endDate: body.endDate,
-        totalDays: newTotalHalfDays,
+        totalHalfDays: newTotalHalfDays,
         reason: safeReason,
         isHalfDay: body.isHalfDay,
         halfDaySlot: body.halfDaySlot ?? null,

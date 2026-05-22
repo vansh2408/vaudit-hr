@@ -31,6 +31,7 @@ import {
   type HolidayRow,
 } from "@/lib/api/queries";
 import { emptyStates } from "@/lib/copy/empty-states";
+import { formatYmdHuman, unsafeYmd } from "@/lib/utils/dates";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
@@ -45,7 +46,10 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 function fmt(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+  // `iso` is a YYYY-MM-DD calendar date from the API, not an instant.
+  // `new Date("YYYY-MM-DD")` would parse as UTC midnight and shift the
+  // day in any non-UTC TZ; route everything through the Ymd helpers.
+  return formatYmdHuman(unsafeYmd(iso), {
     weekday: "short",
     month: "short",
     day: "numeric",

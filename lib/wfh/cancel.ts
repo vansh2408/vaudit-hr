@@ -125,7 +125,7 @@ export async function cancelWfhRequest(
         targetId: req.id,
         metadata: {
           employeeId: req.employeeId,
-          totalDays: req.totalDays,
+          totalHalfDays: req.totalDays,
           reviewedById: req.reviewedById,
         },
       });
@@ -193,6 +193,11 @@ export async function approveWfhCancellation(
         `Cannot approve cancellation: request is ${req.status}, expected PENDING_CANCELLATION`,
       );
     }
+    // If the WFH window has already started, cancelling retroactively
+    // makes the history misleading (the row would say CANCELLED for days
+    // the employee actually worked from home). Manager must REJECT the
+    // cancellation instead — same shape as the leave path.
+    assertNotStarted(req);
     await tx
       .update(wfhRequests)
       .set({
@@ -214,7 +219,7 @@ export async function approveWfhCancellation(
     targetId: requestId,
     metadata: {
       employeeId: result.employeeId,
-      totalDays: result.totalDays,
+      totalHalfDays: result.totalDays,
       ...(reviewerNote !== undefined && reviewerNote.length > 0
         ? { reviewerNote }
         : {}),

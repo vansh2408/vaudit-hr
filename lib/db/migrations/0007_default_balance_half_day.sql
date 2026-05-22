@@ -1,0 +1,34 @@
+-- 0007: leave_types.default_balance unit shift to match 0006.
+--
+-- Migration 0006 doubled every existing leave_balances row to half-day
+-- units (the new system unit), but missed `leave_types.default_balance`
+-- — the per-type seed value that is copied into a new employee's
+-- `leave_balances.allocated` on hire / CSV import.
+--
+-- Effect of the miss: every employee created after 0006 was applied
+-- received `default_balance` half-days = HALF the intended PTO. Pre-0006
+-- employees are unaffected because their `leave_balances` rows were
+-- doubled in place by 0006.
+--
+-- This migration doubles `default_balance` so new employees get the
+-- correct allocation going forward. It does NOT touch existing
+-- `leave_balances` rows because we cannot programmatically distinguish
+-- the bug-halved rows from rows an admin intentionally lowered.
+--
+-- AFFECTED-EMPLOYEE DETECTION (run after this migration):
+--   SELECT u.email, lt.name,
+--          lb.allocated AS current_half_days,
+--          lt.default_balance AS new_default_half_days
+--     FROM leave_balances lb
+--     JOIN users u       ON u.id  = lb.employee_id
+--     JOIN leave_types lt ON lt.id = lb.leave_type_id
+--    WHERE lt.default_balance > 0
+--      AND lb.allocated < lt.default_balance
+--      AND u.is_active = true
+--    ORDER BY u.email, lt.name;
+--
+-- For each row returned, decide whether the gap is the 0006-related
+-- halving (allocated == default_balance / 2) or an intentional lower
+-- allocation, and correct via /admin/balances if it's the former.
+
+UPDATE "leave_types" SET "default_balance" = "default_balance" * 2;

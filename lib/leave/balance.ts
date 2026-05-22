@@ -15,6 +15,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import { db as defaultDb } from "@/lib/db";
 import type { schema as dbSchema } from "@/lib/db";
 import { leaveBalances, leaveTypes } from "@/lib/db/schema";
+import { formatDays } from "@/lib/utils/format-days";
 
 type Db = NodePgDatabase<typeof dbSchema>;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -124,7 +125,8 @@ export async function checkBalance(
       remaining,
       isPaid: true,
       isExempt: false,
-      reason: `Insufficient balance: need ${days}, have ${remaining}`,
+      // `days` and `remaining` are half-day units; format for user copy.
+      reason: `Insufficient balance: need ${formatDays(days)}, have ${formatDays(remaining)}`,
     };
   }
   return {

@@ -274,8 +274,10 @@ export const balanceAdjustSchema = z.object({
   employeeId: z.string().min(1),
   leaveTypeId: uuidSchema,
   year: z.number().int().min(2000).max(2100),
-  allocated: z.number().int().min(0).max(366).optional(),
-  used: z.number().int().min(0).max(366).optional(),
+  // Half-day units (post-0006). 732 = 366 calendar days × 2 half-days,
+  // matching the absolute upper bound of a single year's allocation.
+  allocated: z.number().int().min(0).max(732).optional(),
+  used: z.number().int().min(0).max(732).optional(),
   reason: z.string().trim().max(2000).optional(),
 });
 
