@@ -3,13 +3,47 @@
  *  GET → paginated filterable view of audit_logs. Admin-only.
  */
 import { NextResponse, type NextRequest } from "next/server";
-import { and, desc, eq, gte, ilike, lte, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, lte, or, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, users } from "@/lib/db/schema";
+import { auditLogs, leaveTypes, users } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { auditLogFilterSchema } from "@/lib/validation/common";
 import { handleRouteError } from "@/lib/api/errors";
 import { parseSearchParams } from "@/lib/api/route-helpers";
+
+// Metadata payloads often carry foreign-key IDs (employeeId, leaveTypeId,
+// reviewedById, …). The UI is unreadable when those are raw UUIDs, so we
+// resolve them server-side into a flat { id → human name } lookup. The
+// client substitutes against this when rendering the expanded panel.
+const USER_ID_KEYS = new Set([
+  "employeeId",
+  "reviewedById",
+  "managerId",
+  "byUserId",
+  "targetEmployeeId",
+]);
+const LEAVE_TYPE_ID_KEYS = new Set(["leaveTypeId"]);
+
+function collectIdsFromMetadata(
+  node: unknown,
+  userIds: Set<string>,
+  leaveTypeIds: Set<string>,
+): void {
+  if (Array.isArray(node)) {
+    for (const v of node) collectIdsFromMetadata(v, userIds, leaveTypeIds);
+    return;
+  }
+  if (node && typeof node === "object") {
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      if (typeof v === "string") {
+        if (USER_ID_KEYS.has(k)) userIds.add(v);
+        else if (LEAVE_TYPE_ID_KEYS.has(k)) leaveTypeIds.add(v);
+      } else if (v && typeof v === "object") {
+        collectIdsFromMetadata(v, userIds, leaveTypeIds);
+      }
+    }
+  }
+}
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
@@ -89,8 +123,50 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       metadata: r.metadata,
       createdAt: r.createdAt,
     }));
+
+    // Resolve IDs referenced inside metadata payloads into a flat lookup
+    // map so the client can render names instead of raw UUIDs. Also
+    // resolve `targetId` for the rows whose target table is users /
+    // leave_types — admins reading a row about a deleted employee
+    // shouldn't have to translate UUIDs in their head.
+    const userIdsToResolve = new Set<string>();
+    const leaveTypeIdsToResolve = new Set<string>();
+    for (const r of rows) {
+      collectIdsFromMetadata(r.metadata, userIdsToResolve, leaveTypeIdsToResolve);
+      if (r.targetId) {
+        if (r.targetTable === "users") userIdsToResolve.add(r.targetId);
+        else if (r.targetTable === "leave_types") leaveTypeIdsToResolve.add(r.targetId);
+      }
+    }
+    const [userRows, leaveTypeRows] = await Promise.all([
+      userIdsToResolve.size > 0
+        ? db
+            .select({
+              id: users.id,
+              firstName: users.firstName,
+              lastName: users.lastName,
+            })
+            .from(users)
+            .where(inArray(users.id, [...userIdsToResolve]))
+        : Promise.resolve([] as Array<{ id: string; firstName: string; lastName: string }>),
+      leaveTypeIdsToResolve.size > 0
+        ? db
+            .select({ id: leaveTypes.id, name: leaveTypes.name })
+            .from(leaveTypes)
+            .where(inArray(leaveTypes.id, [...leaveTypeIdsToResolve]))
+        : Promise.resolve([] as Array<{ id: string; name: string }>),
+    ]);
+    const resolvedNames: Record<string, string> = {};
+    for (const u of userRows) {
+      resolvedNames[u.id] = `${u.firstName} ${u.lastName}`;
+    }
+    for (const lt of leaveTypeRows) {
+      resolvedNames[lt.id] = lt.name;
+    }
+
     return NextResponse.json({
       items,
+      resolvedNames,
       page: q.page,
       pageSize: q.pageSize,
     });

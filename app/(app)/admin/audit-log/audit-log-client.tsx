@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 
 import { DatePicker } from "@/components/date-picker";
 import { EmptyState } from "@/components/empty-state";
@@ -77,13 +77,49 @@ function fmt(iso: string): string {
   return formatInstant(iso);
 }
 
-function metadataPreview(metadata: unknown): string {
+/**
+ * Walk the metadata tree and replace any string value that matches a
+ * resolved-name lookup with the human name. Read-only: never mutates the
+ * input. Used both for the truncated preview cell and the pretty-printed
+ * expanded panel, so the admin sees "Vansh Nandwani" instead of
+ * "49c06b24-9712-...". Unresolved IDs (deleted user / type) fall through
+ * unchanged.
+ */
+function annotateMetadata(node: unknown, lookup: Record<string, string>): unknown {
+  if (Array.isArray(node)) {
+    return node.map((v) => annotateMetadata(v, lookup));
+  }
+  if (node && typeof node === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      out[k] = annotateMetadata(v, lookup);
+    }
+    return out;
+  }
+  if (typeof node === "string" && lookup[node]) return lookup[node];
+  return node;
+}
+
+function metadataPreview(metadata: unknown, lookup: Record<string, string>): string {
   if (metadata === null || metadata === undefined) return "—";
   try {
-    return JSON.stringify(metadata);
+    return JSON.stringify(annotateMetadata(metadata, lookup));
   } catch {
     return "—";
   }
+}
+
+function metadataPretty(metadata: unknown, lookup: Record<string, string>): string {
+  if (metadata === null || metadata === undefined) return "—";
+  try {
+    return JSON.stringify(annotateMetadata(metadata, lookup), null, 2);
+  } catch {
+    return String(metadata);
+  }
+}
+
+function hasMetadata(metadata: unknown): boolean {
+  return metadata !== null && metadata !== undefined;
 }
 
 // Delay between the last keystroke and the request firing. Long enough to
@@ -94,6 +130,10 @@ const ACTOR_QUERY_DEBOUNCE_MS = 250;
 export function AuditLogClient(): React.JSX.Element {
   const [filters, setFilters] = React.useState<Filters>({});
   const [page, setPage] = React.useState<number>(1);
+  // Which row's metadata panel is open. Single-open keeps the table from
+  // ballooning when an admin scrolls a long page; clicking another row
+  // closes the previous one.
+  const [expandedId, setExpandedId] = React.useState<string | null>(null);
 
   // Local mirror of the Actor input. The user sees their keystrokes
   // immediately (this state updates on every change), but `filters.actorQuery`
@@ -161,6 +201,10 @@ export function AuditLogClient(): React.JSX.Element {
   }
 
   const items: AuditLogRow[] = data?.items ?? [];
+  // ID → human-name map returned by the server (collected from row
+  // metadata + targetId where targetTable is users/leave_types). Empty
+  // object until data arrives so render is safe.
+  const resolvedNames = data?.resolvedNames ?? {};
 
   return (
     <div className="space-y-4">
@@ -256,49 +300,98 @@ export function AuditLogClient(): React.JSX.Element {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {items.map((row) => (
-                <tr key={row.id}>
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
-                    {fmt(row.createdAt)}
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {row.actorName ? (
-                      <div>
-                        <p className="font-medium text-foreground">
-                          {row.actorName}
+              {items.map((row) => {
+                const isOpen = expandedId === row.id;
+                const canExpand = hasMetadata(row.metadata);
+                return (
+                  <React.Fragment key={row.id}>
+                    <tr
+                      className={
+                        canExpand
+                          ? "cursor-pointer hover:bg-muted/40"
+                          : undefined
+                      }
+                      onClick={() => {
+                        if (!canExpand) return;
+                        setExpandedId((prev) => (prev === row.id ? null : row.id));
+                      }}
+                      aria-expanded={canExpand ? isOpen : undefined}
+                    >
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-muted-foreground">
+                        {fmt(row.createdAt)}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        {row.actorName ? (
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {row.actorName}
+                            </p>
+                            {row.actorEmail ? (
+                              <p className="text-muted-foreground">
+                                {row.actorEmail}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : row.actorId ? (
+                          // Actor row was deleted but the audit FK kept the UUID.
+                          // Surface it explicitly so the action is still attributable.
+                          <span
+                            className="font-mono text-muted-foreground"
+                            title={row.actorId}
+                          >
+                            (deleted user)
+                          </span>
+                        ) : (
+                          // No actor at all — system-issued (cron, automated job).
+                          <span className="text-muted-foreground">System</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 font-medium">{row.action}</td>
+                      <td className="px-3 py-2 text-xs">
+                        <p>{row.targetTable}</p>
+                        {/* Substitute the target name where we have one
+                            (users / leave_types). Falls back to the UUID
+                            so deleted rows still render a value. */}
+                        <p
+                          className="text-muted-foreground"
+                          title={row.targetId ?? undefined}
+                        >
+                          {row.targetId
+                            ? (resolvedNames[row.targetId] ?? row.targetId)
+                            : "—"}
                         </p>
-                        {row.actorEmail ? (
-                          <p className="text-muted-foreground">
-                            {row.actorEmail}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : row.actorId ? (
-                      // Actor row was deleted but the audit FK kept the UUID.
-                      // Surface it explicitly so the action is still attributable.
-                      <span
-                        className="font-mono text-muted-foreground"
-                        title={row.actorId}
-                      >
-                        (deleted user)
-                      </span>
-                    ) : (
-                      // No actor at all — system-issued (cron, automated job).
-                      <span className="text-muted-foreground">System</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 font-medium">{row.action}</td>
-                  <td className="px-3 py-2 text-xs">
-                    <p>{row.targetTable}</p>
-                    <p className="text-muted-foreground">
-                      {row.targetId ?? "—"}
-                    </p>
-                  </td>
-                  <td className="max-w-md truncate px-3 py-2 font-mono text-xs text-muted-foreground">
-                    {metadataPreview(row.metadata)}
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                      <td className="max-w-md px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">
+                            {metadataPreview(row.metadata, resolvedNames)}
+                          </span>
+                          {canExpand ? (
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 shrink-0 transition-transform ${
+                                isOpen ? "rotate-180" : ""
+                              }`}
+                              aria-hidden
+                            />
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                    {isOpen && canExpand ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="bg-muted/30 px-3 py-3 font-mono text-xs text-foreground"
+                        >
+                          <pre className="whitespace-pre-wrap break-words">
+                            {metadataPretty(row.metadata, resolvedNames)}
+                          </pre>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

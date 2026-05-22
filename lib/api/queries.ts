@@ -583,6 +583,18 @@ export function deleteHoliday(
 
 // ---------- Admin: Audit logs ----------
 
+/**
+ * Response wraps `ListResponse<AuditLogRow>` with a flat
+ * `resolvedNames: { id → human name }` map. The server pre-resolves the
+ * UUIDs it finds in the rows' metadata (employeeId, leaveTypeId,
+ * reviewedById, …) so the client can substitute names without a second
+ * fetch. Unresolved IDs (deleted user, deleted type) are simply absent
+ * from the map; render falls back to the raw UUID.
+ */
+export interface AuditLogsResponse extends ListResponse<AuditLogRow> {
+  resolvedNames: Record<string, string>;
+}
+
 export function listAuditLogs(params: {
   actorId?: string;
   /** Substring match on first name / last name / email. */
@@ -593,8 +605,8 @@ export function listAuditLogs(params: {
   dateTo?: string;
   page?: number;
   pageSize?: number;
-}): Promise<ListResponse<AuditLogRow>> {
-  return apiFetch<ListResponse<AuditLogRow>>(
+}): Promise<AuditLogsResponse> {
+  return apiFetch<AuditLogsResponse>(
     `/api/admin/audit-logs${buildQuery({
       ...(params.actorId !== undefined && { actorId: params.actorId }),
       ...(params.actorQuery !== undefined && { actorQuery: params.actorQuery }),
