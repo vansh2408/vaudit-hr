@@ -345,3 +345,12 @@ export const leaveListQuerySchema = z.object({
 export const employeeListQuerySchema = z.object({
   includeInactive: queryBooleanSchema,
 });
+
+// Team calendar: a half-open window is awkward to reason about for a calendar
+// grid, so the contract is *inclusive* on both ends. `to >= from` is enforced
+// at the route handler since superRefine on a plain object schema doesn't
+// surface a friendly error code through our standard handler.
+export const teamCalendarQuerySchema = z.object({
+  from: dateFromYmdSchema,
+  to: dateFromYmdSchema,
+});

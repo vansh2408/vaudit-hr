@@ -176,3 +176,46 @@ export function isWeekendYmd(s: Ymd): boolean {
   const dow = ymdToLocalDate(s).getDay();
   return dow === 0 || dow === 6;
 }
+
+/** First day of the calendar month containing `s`. */
+export function startOfMonth(s: Ymd): Ymd {
+  return unsafeYmd(`${s.slice(0, 7)}-01`);
+}
+
+/** Last day of the calendar month containing `s`. */
+export function endOfMonth(s: Ymd): Ymd {
+  const d = ymdToLocalDate(s);
+  // Day 0 of next month = last day of this month.
+  return localDateToYmd(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+/**
+ * Monday of the week containing `s`. We anchor weeks to Monday because the
+ * org operates on Mon–Fri work weeks; weekend chips render at the row edge.
+ */
+export function startOfWeek(s: Ymd): Ymd {
+  const d = ymdToLocalDate(s);
+  // getDay(): 0=Sun, 1=Mon, …, 6=Sat. Shift so Monday is 0.
+  const fromMonday = (d.getDay() + 6) % 7;
+  return addDays(s, -fromMonday);
+}
+
+/** Sunday of the week containing `s` (Monday-anchored week). */
+export function endOfWeek(s: Ymd): Ymd {
+  return addDays(startOfWeek(s), 6);
+}
+
+/**
+ * Inclusive Ymd range as an array. Use for small spans (calendar grids,
+ * working-day enumeration). Returns `[from]` when from === to.
+ */
+export function ymdRange(from: Ymd, to: Ymd): Ymd[] {
+  if (compareYmd(from, to) > 0) return [];
+  const out: Ymd[] = [];
+  let cur = from;
+  while (compareYmd(cur, to) <= 0) {
+    out.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return out;
+}

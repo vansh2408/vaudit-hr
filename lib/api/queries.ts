@@ -192,6 +192,12 @@ export const queryKeys = {
       ["notifications", "all", page, Boolean(unreadOnly)] as const,
   },
   orgChart: () => ["org-chart"] as const,
+  team: {
+    // Calendar entries are scoped by the date window; admin vs manager
+    // scope is resolved server-side, so the cache key doesn't need it.
+    calendar: (from: string, to: string) =>
+      ["team", "calendar", from, to] as const,
+  },
 } as const;
 
 // ---------- Leave ----------
@@ -512,6 +518,33 @@ export function adjustBalance(body: {
   return apiFetch<{ id?: string; created?: boolean; updated?: boolean }>(
     "/api/admin/balances",
     { method: "PATCH", body },
+  );
+}
+
+// ---------- Team calendar ----------
+
+export interface TeamCalendarItem {
+  kind: "leave" | "wfh";
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  leaveTypeId: string | null;
+  leaveTypeName: string | null;
+  /** Hex like "#3b82f6". Null for WFH (we render a neutral chip). */
+  leaveTypeColor: string | null;
+  startDate: string;
+  endDate: string;
+  isHalfDay: boolean;
+  halfDaySlot: "FIRST_HALF" | "SECOND_HALF" | null;
+  status: RequestStatus;
+}
+
+export function listTeamCalendar(params: {
+  from: string;
+  to: string;
+}): Promise<{ items: TeamCalendarItem[] }> {
+  return apiFetch<{ items: TeamCalendarItem[] }>(
+    `/api/team/calendar${buildQuery({ from: params.from, to: params.to })}`,
   );
 }
 
