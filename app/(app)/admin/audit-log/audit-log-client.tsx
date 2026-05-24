@@ -73,17 +73,37 @@ interface Filters {
 
 // createdAt is an instant (PG timestamp), displayed in the org TZ.
 import { formatInstant } from "@/lib/utils/timezone";
+import { formatDays } from "@/lib/utils/format-days";
 function fmt(iso: string): string {
   return formatInstant(iso);
 }
 
+// Keys whose numeric values live in HALF-DAY UNITS in the DB (post-0006).
+// Rendering them as-is means audit log shows "allocated: 6" while the
+// balances UI for the same row shows "3" days — confusing for admins
+// reading their own change history. Format these via `formatDays` so the
+// units match the rest of the app. The parent path doesn't matter: these
+// keys are unambiguously half-days wherever they appear.
+//
+// `totalDays` is the legacy key name from pre-rename audit rows; the
+// value was already in half-day units (the 0006 unit shift predated the
+// key rename), so historical rows format identically.
+const HALF_DAY_KEYS = new Set([
+  "allocated",
+  "used",
+  "totalHalfDays",
+  "totalDays",
+]);
+
 /**
- * Walk the metadata tree and replace any string value that matches a
- * resolved-name lookup with the human name. Read-only: never mutates the
- * input. Used both for the truncated preview cell and the pretty-printed
- * expanded panel, so the admin sees "Vansh Nandwani" instead of
- * "49c06b24-9712-...". Unresolved IDs (deleted user / type) fall through
- * unchanged.
+ * Walk the metadata tree and:
+ *   1. Replace any string value that matches a resolved-name lookup with
+ *      the human name (employeeId → "Win Htet Aung", leaveTypeId → "Personal").
+ *   2. Convert any number value under a HALF_DAY_KEYS key to a human
+ *      day-count string via formatDays ("Half day" / "1 day" / "3 days").
+ *
+ * Read-only: never mutates the input. Used by both the truncated preview
+ * cell and the pretty-printed expanded panel.
  */
 function annotateMetadata(node: unknown, lookup: Record<string, string>): unknown {
   if (Array.isArray(node)) {
@@ -92,7 +112,11 @@ function annotateMetadata(node: unknown, lookup: Record<string, string>): unknow
   if (node && typeof node === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-      out[k] = annotateMetadata(v, lookup);
+      if (typeof v === "number" && HALF_DAY_KEYS.has(k)) {
+        out[k] = formatDays(v);
+      } else {
+        out[k] = annotateMetadata(v, lookup);
+      }
     }
     return out;
   }

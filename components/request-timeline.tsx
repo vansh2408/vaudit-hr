@@ -180,21 +180,28 @@ function describeChangedFields(
   }
   const beforeRec = before as Record<string, unknown>;
   const afterRec = after as Record<string, unknown>;
+  // Both key names appear in audit_logs: pre-rename rows wrote `totalDays`
+  // (still half-day units, just badly named); post-rename rows write
+  // `totalHalfDays`. A row only carries one of them, so listing both here
+  // produces the right "Changed: working days" tag in either case.
   const fieldDisplay: Record<string, string> = {
     startDate: "start date",
     endDate: "end date",
     leaveTypeId: "type",
+    totalHalfDays: "working days",
     totalDays: "working days",
     reason: "reason",
   };
-  const changed: string[] = [];
+  // Set-dedupe so a row that (defensively) carries both totalDays and
+  // totalHalfDays doesn't render "Changed: working days, working days".
+  const changed = new Set<string>();
   for (const key of Object.keys(fieldDisplay)) {
     if (beforeRec[key] !== afterRec[key]) {
-      changed.push(fieldDisplay[key]!);
+      changed.add(fieldDisplay[key]!);
     }
   }
-  if (changed.length === 0) return null;
-  return `Changed: ${changed.join(", ")}`;
+  if (changed.size === 0) return null;
+  return `Changed: ${[...changed].join(", ")}`;
 }
 
 export function RequestTimeline({

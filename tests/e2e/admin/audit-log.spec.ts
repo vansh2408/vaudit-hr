@@ -71,7 +71,8 @@ test.describe("/admin/audit-log", () => {
 
     await expect(page.getByText("leave.approve").first()).toBeVisible();
     // The metadata column renders JSON; for a leave.approve row it should
-    // contain the totalDays we recorded.
-    await expect(page.getByText(/totalDays/).first()).toBeVisible();
+    // contain the totalHalfDays key the route writes (post the totalDays
+    // -> totalHalfDays rename).
+    await expect(page.getByText(/totalHalfDays/).first()).toBeVisible();
   });
 });
