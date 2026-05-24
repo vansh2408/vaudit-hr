@@ -46,11 +46,17 @@ export function BalanceCard({
   // allocated / used are HALF-DAY UNITS (0006). Convert to a fractional
   // "days" number for the big remaining figure, and pass through formatDays
   // for the subtitle + footer.
-  const remainingUnits = Math.max(allocated - used, 0);
-  const remainingDays = remainingUnits / 2;
-  const remainingDisplay = Number.isInteger(remainingDays)
-    ? `${remainingDays}`
-    : remainingDays.toFixed(1);
+  //
+  // For paid types `used` cannot exceed `allocated` (UI + API guard). For
+  // Unpaid the cap is advisory, so `used` may legitimately go over — in
+  // that case render the figure as overage ("3 days over") instead of
+  // clamping silently to 0.
+  const overUsed = used > allocated;
+  const deltaUnits = overUsed ? used - allocated : allocated - used;
+  const deltaDays = deltaUnits / 2;
+  const deltaDisplay = Number.isInteger(deltaDays)
+    ? `${deltaDays}`
+    : deltaDays.toFixed(1);
   const pct = clampPercent(used, allocated);
   const color = leaveTypeColor(typeName);
 
@@ -82,9 +88,18 @@ export function BalanceCard({
         ) : (
           <>
             <div className="flex items-baseline justify-between">
-              <span className="text-3xl font-semibold tabular-nums">{remainingDisplay}</span>
+              <span
+                className={cn(
+                  "text-3xl font-semibold tabular-nums",
+                  overUsed ? "text-destructive" : undefined,
+                )}
+              >
+                {overUsed ? `+${deltaDisplay}` : deltaDisplay}
+              </span>
               <span className="text-xs text-muted-foreground">
-                of {formatDays(allocated)} remaining
+                {overUsed
+                  ? `over ${formatDays(allocated)} allocation`
+                  : `of ${formatDays(allocated)} remaining`}
               </span>
             </div>
 

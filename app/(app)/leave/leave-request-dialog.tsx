@@ -408,7 +408,16 @@ export function LeaveRequestDialog({
             ) : null}
           </div>
 
-          {selectedType && selectedBalance && selectedType.isPaid ? (
+          {selectedType &&
+          selectedBalance &&
+          (selectedType.isPaid || selectedBalance.allocated > 0) ? (
+            // Show the balance hint for:
+            //   - any paid type (incl. allocated=0 so the user sees the
+            //     "insufficient" warning explicitly — paid+zero is HR
+            //     deliberately revoking allocation, not a missing policy)
+            //   - unpaid types that have a soft allocation set
+            // The "insufficient" warning still only fires for paid types
+            // (see `insufficient` definition above) — Unpaid has no hard cap.
             <div
               className="rounded-md border border-border bg-muted/40 p-3 text-xs"
               aria-live="polite"

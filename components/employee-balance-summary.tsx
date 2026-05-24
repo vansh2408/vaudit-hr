@@ -44,7 +44,7 @@ export function EmployeeBalanceSummary({
                 allocated={b.allocated}
                 used={b.used}
                 description={`Year ${year}`}
-                unlimited={!b.isPaid}
+                unlimited={!b.isPaid && b.allocated === 0}
               />
             ))}
           </div>

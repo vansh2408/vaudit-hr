@@ -137,9 +137,15 @@ const SEED_LEAVE_TYPES: SeedLeaveType[] = [
     color: "#ec4899",
   },
   {
+    // Unpaid stays `isPaid: false` so the API skips balance enforcement
+    // (lib/leave/balance.ts:99) — requests can exceed the allocation. The
+    // 60 half-days (= 30 days) value is HR's POLICY default that shows in
+    // the balance editor; it's a soft target, not a hard cap. The
+    // BalanceCard still renders these rows as "Unlimited" because the
+    // policy itself is unlimited.
     name: "Unpaid",
-    description: "Unpaid leave — unlimited",
-    defaultBalance: 0,
+    description: "Unpaid leave — unlimited (30-day policy default)",
+    defaultBalance: 60,
     isPaid: false,
     color: "#64748b",
   },

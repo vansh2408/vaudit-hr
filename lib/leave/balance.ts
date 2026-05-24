@@ -7,8 +7,11 @@
  *   so callers can sequence balance + request status changes inside one
  *   transaction (decisions A8).
  *
- * "Unpaid" leave (isPaid=false) is exempt from balance checks — it always
- * passes and never mutates the counter.
+ * "Unpaid" leave (isPaid=false) is exempt from the *cap* check — `checkBalance`
+ * always returns ok=true so submissions aren't blocked. But the counter is
+ * still tracked (consume + refund) so HR sees actual consumption against the
+ * soft policy default; the balance card renders it as a regular tracked card
+ * with overage shown when used > allocated.
  */
 import { and, eq, sql } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
@@ -146,8 +149,13 @@ export async function consumeBalance(
   year: number,
   client: DbOrTx = defaultDb,
 ): Promise<void> {
+  // Move the counter regardless of isPaid. Unpaid is exempt from the cap
+  // CHECK (in checkBalance) but its usage is still tracked so HR sees real
+  // consumption against the soft policy default. `used` can legitimately
+  // exceed `allocated` for unpaid types; BalanceCard surfaces that as
+  // "X over" rather than clamping to zero.
   const type = await getLeaveType(client, leaveTypeId);
-  if (!type || !type.isPaid) return; // Unpaid leave: no counter movement.
+  if (!type) return;
   await client
     .update(leaveBalances)
     .set({ used: sql`${leaveBalances.used} + ${days}` })
@@ -168,8 +176,9 @@ export async function refundBalance(
   client: DbOrTx = defaultDb,
 ): Promise<void> {
   const type = await getLeaveType(client, leaveTypeId);
-  if (!type || !type.isPaid) return;
-  // Floor at 0 to prevent negatives if data drifted.
+  if (!type) return;
+  // Floor at 0 to prevent negatives if data drifted. Applies to unpaid as
+  // well — a cancelled Unpaid leave decrements used the same way.
   await client
     .update(leaveBalances)
     .set({

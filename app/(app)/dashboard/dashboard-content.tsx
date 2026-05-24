@@ -230,7 +230,10 @@ function MyBalancesGrid({ balances }: { balances: EmployeeBalanceRow[] }): React
           allocated={b.allocated}
           used={b.used}
           description={`Year ${year}`}
-          unlimited={!b.isPaid}
+          // "Unlimited" rendering only when there's no policy default set
+          // — once HR allocates a soft target (Unpaid post-0008), render
+          // the tracked card so usage against the policy is visible.
+          unlimited={!b.isPaid && b.allocated === 0}
         />
       ))}
     </div>
