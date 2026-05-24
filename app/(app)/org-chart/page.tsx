@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { PageShell } from "@/components/page-shell";
-import { CardGridSkeleton } from "@/components/skeletons";
+import { PageShell } from "@/components/layout/page-shell";
+import { CardGridSkeleton } from "@/components/feedback/skeletons";
 import { requireSession } from "@/lib/auth/guards";
 import { OrgChartClient } from "./org-chart-client";
 

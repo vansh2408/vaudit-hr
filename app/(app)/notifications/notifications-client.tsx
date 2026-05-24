@@ -6,10 +6,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bell, CheckCheck } from "lucide-react";
 
-import { EmptyState } from "@/components/empty-state";
-import { ListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { ListSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
-import { NOTIFICATIONS_POLL_INTERVAL_MS } from "@/components/notifications-data";
+import { NOTIFICATIONS_POLL_INTERVAL_MS } from "@/components/notifications/notifications-data";
 import { ApiError } from "@/lib/api/client";
 import {
   listNotifications,

@@ -3,10 +3,10 @@ import Link from "next/link";
 import { and, asc, count, eq, gte, inArray, lte, ne } from "drizzle-orm";
 import { ArrowRight, CalendarDays, ClipboardCheck, Users } from "lucide-react";
 
-import { Avatar } from "@/components/avatar";
-import { BalanceCard } from "@/components/balance-card";
-import { EmptyState } from "@/components/empty-state";
-import { LeaveTypeBadge } from "@/components/leave-type-badge";
+import { Avatar } from "@/components/domain/avatar";
+import { BalanceCard } from "@/components/domain/balance-card";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { LeaveTypeBadge } from "@/components/domain/leave-type-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";

@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { PageShell } from "@/components/page-shell";
-import { DashboardSkeleton } from "@/components/skeletons";
+import { PageShell } from "@/components/layout/page-shell";
+import { DashboardSkeleton } from "@/components/feedback/skeletons";
 import { requireSession } from "@/lib/auth/guards";
 import { DashboardContent } from "./dashboard-content";
 

@@ -1,8 +1,8 @@
 import * as React from "react";
 
-import { NoAccess } from "@/components/no-access";
-import { PageShell } from "@/components/page-shell";
-import { TableSkeleton } from "@/components/skeletons";
+import { NoAccess } from "@/components/feedback/no-access";
+import { PageShell } from "@/components/layout/page-shell";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { requireSession } from "@/lib/auth/guards";
 import { isAdminRole } from "@/lib/api/route-helpers";
 import { AuditLogClient } from "./audit-log-client";

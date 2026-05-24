@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 
 /**
  * Minimal authenticated-shell-free layout used for /login.

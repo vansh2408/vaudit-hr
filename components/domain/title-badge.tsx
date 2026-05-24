@@ -3,7 +3,7 @@
 import * as React from "react";
 import { usePathname } from "next/navigation";
 
-import { useRecentNotifications } from "@/components/notifications-data";
+import { useRecentNotifications } from "@/components/notifications/notifications-data";
 
 /**
  * Prefixes the browser-tab title with the unread-notifications count, the

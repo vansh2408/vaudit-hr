@@ -2,10 +2,10 @@ import * as React from "react";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 
-import { Avatar } from "@/components/avatar";
-import { EmployeeBalanceSummary } from "@/components/employee-balance-summary";
-import { PageShell } from "@/components/page-shell";
-import { RoleBadge } from "@/components/role-badge";
+import { Avatar } from "@/components/domain/avatar";
+import { EmployeeBalanceSummary } from "@/components/domain/employee-balance-summary";
+import { PageShell } from "@/components/layout/page-shell";
+import { RoleBadge } from "@/components/domain/role-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from "@/lib/db";
 import { leaveTypes, users } from "@/lib/db/schema";

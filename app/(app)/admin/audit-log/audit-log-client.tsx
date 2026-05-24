@@ -4,9 +4,9 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText } from "lucide-react";
 
-import { DatePicker } from "@/components/date-picker";
-import { EmptyState } from "@/components/empty-state";
-import { TableSkeleton } from "@/components/skeletons";
+import { DatePicker } from "@/components/forms/date-picker";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

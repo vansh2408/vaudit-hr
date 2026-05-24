@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { TableSkeleton } from "@/components/skeletons";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 
 export default function Loading(): React.JSX.Element {
   return (

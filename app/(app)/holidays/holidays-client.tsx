@@ -8,10 +8,10 @@ import { toast } from "sonner";
 import { Palmtree, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { DatePicker } from "@/components/date-picker";
-import { EmptyState } from "@/components/empty-state";
-import { TableSkeleton } from "@/components/skeletons";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
+import { DatePicker } from "@/components/forms/date-picker";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

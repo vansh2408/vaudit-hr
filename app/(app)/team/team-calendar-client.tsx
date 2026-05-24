@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Laptop } from "lucide-react";
 
-import { TableSkeleton } from "@/components/skeletons";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { listTeamCalendar, queryKeys, type TeamCalendarItem } from "@/lib/api/queries";
 import { leaveTypeColor } from "@/lib/leave/colors";

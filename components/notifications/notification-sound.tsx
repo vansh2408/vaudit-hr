@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { useRecentNotifications } from "@/components/notifications-data";
+import { useRecentNotifications } from "@/components/notifications/notifications-data";
 
 const NOTIFICATION_SOUND_SRC = "/sounds/notification.wav";
 

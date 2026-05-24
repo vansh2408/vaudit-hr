@@ -9,8 +9,8 @@ import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { DateRangePicker } from "@/components/date-range-picker";
-import { LeaveTypePicker } from "@/components/leave-type-picker";
+import { DateRangePicker } from "@/components/forms/date-range-picker";
+import { LeaveTypePicker } from "@/components/forms/leave-type-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

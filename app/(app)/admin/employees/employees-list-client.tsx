@@ -6,11 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Users } from "lucide-react";
 
-import { Avatar } from "@/components/avatar";
-import { DataTable } from "@/components/data-table";
-import { EmptyState } from "@/components/empty-state";
-import { RoleBadge } from "@/components/role-badge";
-import { TableSkeleton } from "@/components/skeletons";
+import { Avatar } from "@/components/domain/avatar";
+import { DataTable } from "@/components/tables/data-table";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { RoleBadge } from "@/components/domain/role-badge";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import {

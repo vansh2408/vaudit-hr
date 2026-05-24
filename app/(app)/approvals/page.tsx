@@ -2,9 +2,9 @@ import * as React from "react";
 import { desc, eq, inArray } from "drizzle-orm";
 import { ClipboardCheck } from "lucide-react";
 
-import { EmptyState } from "@/components/empty-state";
-import { PageShell } from "@/components/page-shell";
-import { TableSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { PageShell } from "@/components/layout/page-shell";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { db } from "@/lib/db";
 import {
   leaveRequests,

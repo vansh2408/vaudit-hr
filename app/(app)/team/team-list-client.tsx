@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
-import { Avatar } from "@/components/avatar";
+import { Avatar } from "@/components/domain/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 

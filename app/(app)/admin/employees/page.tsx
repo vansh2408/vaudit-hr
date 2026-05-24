@@ -2,9 +2,9 @@ import * as React from "react";
 import Link from "next/link";
 import { Upload, UserPlus } from "lucide-react";
 
-import { NoAccess } from "@/components/no-access";
-import { PageShell } from "@/components/page-shell";
-import { TableSkeleton } from "@/components/skeletons";
+import { NoAccess } from "@/components/feedback/no-access";
+import { PageShell } from "@/components/layout/page-shell";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { requireSession } from "@/lib/auth/guards";
 import { isAdminRole } from "@/lib/api/route-helpers";

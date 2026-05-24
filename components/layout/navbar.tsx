@@ -4,10 +4,10 @@ import * as React from "react";
 import { LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 
-import { Avatar } from "@/components/avatar";
-import { RoleBadge } from "@/components/role-badge";
-import { SidebarTrigger } from "@/components/sidebar";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Avatar } from "@/components/domain/avatar";
+import { RoleBadge } from "@/components/domain/role-badge";
+import { SidebarTrigger } from "@/components/layout/sidebar";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

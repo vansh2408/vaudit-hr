@@ -5,8 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
 
-import { LeaveTypeBadge } from "@/components/leave-type-badge";
-import { TableSkeleton } from "@/components/skeletons";
+import { LeaveTypeBadge } from "@/components/domain/leave-type-badge";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

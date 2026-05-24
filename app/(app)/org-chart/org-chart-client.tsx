@@ -9,8 +9,8 @@ import type {
   RawNodeDatum,
 } from "react-d3-tree";
 
-import { Avatar } from "@/components/avatar";
-import { EmptyState } from "@/components/empty-state";
+import { Avatar } from "@/components/domain/avatar";
+import { EmptyState } from "@/components/feedback/empty-state";
 import {
   getOrgChart,
   queryKeys,

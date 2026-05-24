@@ -4,7 +4,7 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarDays, UsersRound } from "lucide-react";
 
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import {
   Tabs,
   TabsContent,

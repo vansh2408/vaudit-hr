@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Avatar } from "@/components/avatar";
-import { EmptyState } from "@/components/empty-state";
-import { LeaveTypeBadge } from "@/components/leave-type-badge";
+import { Avatar } from "@/components/domain/avatar";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { LeaveTypeBadge } from "@/components/domain/leave-type-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {

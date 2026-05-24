@@ -7,10 +7,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Laptop, PlusCircle } from "lucide-react";
 
-import { DataTable } from "@/components/data-table";
-import { EmptyState } from "@/components/empty-state";
-import { StatusBadge } from "@/components/status-badge";
-import { TableSkeleton } from "@/components/skeletons";
+import { DataTable } from "@/components/tables/data-table";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { StatusBadge } from "@/components/feedback/status-badge";
+import { TableSkeleton } from "@/components/feedback/skeletons";
 import { Button } from "@/components/ui/button";
 import {
   Select,

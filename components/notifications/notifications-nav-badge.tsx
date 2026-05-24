@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { useRecentNotifications } from "@/components/notifications-data";
+import { useRecentNotifications } from "@/components/notifications/notifications-data";
 import { cn } from "@/lib/utils";
 
 interface Props {

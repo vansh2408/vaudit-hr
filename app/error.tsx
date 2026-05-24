@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { AlertOctagon } from "lucide-react";
 
-import { EmptyState } from "@/components/empty-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { Button } from "@/components/ui/button";
 
 /**

@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { ConfirmDialog } from "@/components/confirm-dialog";
-import { LeaveTypeBadge } from "@/components/leave-type-badge";
+import { ConfirmDialog } from "@/components/feedback/confirm-dialog";
+import { LeaveTypeBadge } from "@/components/domain/leave-type-badge";
 import {
   RequestTimeline,
   type RequestTimelineEntry,
-} from "@/components/request-timeline";
-import { StatusBadge } from "@/components/status-badge";
+} from "@/components/domain/request-timeline";
+import { StatusBadge } from "@/components/feedback/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";

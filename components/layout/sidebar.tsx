@@ -15,7 +15,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { NotificationsNavBadge } from "@/components/notifications-nav-badge";
+import { NotificationsNavBadge } from "@/components/notifications/notifications-nav-badge";
 import type { NavItem } from "@/lib/nav/items";
 import { navItemsForUser } from "@/lib/nav/items";
 import type { UserRole } from "@/lib/db/schema";

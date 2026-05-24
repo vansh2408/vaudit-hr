@@ -1,8 +1,8 @@
 import * as React from "react";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 
-import { NoAccess } from "@/components/no-access";
-import { PageShell } from "@/components/page-shell";
+import { NoAccess } from "@/components/feedback/no-access";
+import { PageShell } from "@/components/layout/page-shell";
 import { db } from "@/lib/db";
 import { holidays, users } from "@/lib/db/schema";
 import { requireSession } from "@/lib/auth/guards";

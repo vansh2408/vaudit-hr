@@ -7,11 +7,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarDays, PlusCircle } from "lucide-react";
 
-import { DataTable } from "@/components/data-table";
-import { EmptyState } from "@/components/empty-state";
-import { LeaveTypeBadge } from "@/components/leave-type-badge";
-import { TableSkeleton } from "@/components/skeletons";
-import { StatusBadge } from "@/components/status-badge";
+import { DataTable } from "@/components/tables/data-table";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { LeaveTypeBadge } from "@/components/domain/leave-type-badge";
+import { TableSkeleton } from "@/components/feedback/skeletons";
+import { StatusBadge } from "@/components/feedback/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,

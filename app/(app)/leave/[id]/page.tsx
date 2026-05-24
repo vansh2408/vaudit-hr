@@ -2,7 +2,7 @@ import * as React from "react";
 import { notFound } from "next/navigation";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 
-import { PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/layout/page-shell";
 import { db } from "@/lib/db";
 import {
   holidays,

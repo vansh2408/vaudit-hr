@@ -7,8 +7,8 @@ import { toast } from "sonner";
 import {
   NotificationBell,
   type NotificationItem,
-} from "@/components/notification-bell";
-import { useRecentNotifications } from "@/components/notifications-data";
+} from "@/components/notifications/notification-bell";
+import { useRecentNotifications } from "@/components/notifications/notifications-data";
 import { ApiError } from "@/lib/api/client";
 import {
   markNotificationRead,

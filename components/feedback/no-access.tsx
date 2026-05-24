@@ -3,8 +3,8 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/empty-state";
-import { PageShell } from "@/components/page-shell";
+import { EmptyState } from "@/components/feedback/empty-state";
+import { PageShell } from "@/components/layout/page-shell";
 
 interface Props {
   title?: string;

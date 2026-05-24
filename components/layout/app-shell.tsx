@@ -1,10 +1,10 @@
 import * as React from "react";
 import { redirect } from "next/navigation";
 
-import { Navbar } from "@/components/navbar";
-import { NotificationSound } from "@/components/notification-sound";
-import { Sidebar } from "@/components/sidebar";
-import { TitleBadge } from "@/components/title-badge";
+import { Navbar } from "@/components/layout/navbar";
+import { NotificationSound } from "@/components/notifications/notification-sound";
+import { Sidebar } from "@/components/layout/sidebar";
+import { TitleBadge } from "@/components/domain/title-badge";
 import { auth } from "@/lib/auth/config";
 
 type AppShellProps = {

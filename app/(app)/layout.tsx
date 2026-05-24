@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { AppShell } from "@/components/app-shell";
-import { NotificationsSlot } from "@/components/notifications-slot";
+import { AppShell } from "@/components/layout/app-shell";
+import { NotificationsSlot } from "@/components/notifications/notifications-slot";
 import { QueryProvider } from "@/providers/query-provider";
 import { requireSession } from "@/lib/auth/guards";
 

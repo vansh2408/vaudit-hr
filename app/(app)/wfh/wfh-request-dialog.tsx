@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { DateRange } from "react-day-picker";
 
-import { DateRangePicker } from "@/components/date-range-picker";
+import { DateRangePicker } from "@/components/forms/date-range-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

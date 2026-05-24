@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import { BalanceCard } from "@/components/balance-card";
+import { BalanceCard } from "@/components/domain/balance-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { EmployeeBalanceRow } from "@/lib/leave/balances-query";
 
