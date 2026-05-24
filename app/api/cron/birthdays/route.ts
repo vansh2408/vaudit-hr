@@ -1,15 +1,18 @@
 /**
  * /api/cron/birthdays
- *  POST (Bearer CRON_SECRET) — sends one Slack DM per HR_ADMIN birthday
- *  match. Auth via constant-time comparison against CRON_SECRET env var.
+ *  POST (Bearer CRON_SECRET) — sends ONE Slack DM per day to the
+ *  configured HR admin, summarising every active employee whose
+ *  birthday lands today. Auth via constant-time comparison against
+ *  CRON_SECRET. Zero birthdays today → no DM sent; the audit log still
+ *  records the run so a quiet day is visible in history.
  *
- * Filters: users.birthday equals today's MM-DD AND users.isActive = true.
- * Birthday DMs go to the single configured HR_ADMIN Slack user
- * (`SLACK_HR_ADMIN_SLACK_USER_ID`). SUPER_ADMINs never receive these (A11).
+ * Filters: users.birthday endswith today's MM-DD AND users.isActive = true.
+ * The single recipient is `SLACK_HR_ADMIN_SLACK_USER_ID`. SUPER_ADMINs
+ * never receive these (A11).
  *
- * Scheduling (2026-05-20): this endpoint is invoked daily by a Google
- * Apps Script trigger. Set up by creating a time-based trigger in the
- * Apps Script project that runs a function like:
+ * Scheduling (2026-05-20): invoked daily by a Google Apps Script trigger.
+ * Set up by creating a time-based trigger in the Apps Script project
+ * that calls a function like:
  *
  *   function pingHrBirthdays() {
  *     UrlFetchApp.fetch("https://<your-host>/api/cron/birthdays", {
@@ -43,6 +46,43 @@ function extractBearer(header: string | null): string | null {
   return m ? (m[1] ?? null) : null;
 }
 
+interface BirthdayPerson {
+  firstName: string;
+  lastName: string;
+  email: string;
+  position: string | null;
+  department: string | null;
+}
+
+/**
+ * Format the role line "Position · Department". Null-aware so an
+ * employee with only one (or neither) field set still renders cleanly
+ * — no stray separators / em-dashes.
+ */
+function fmtRole(position: string | null, department: string | null): string | null {
+  if (position && department) return `${position} · ${department}`;
+  return position ?? department ?? null;
+}
+
+/**
+ * Compose the single per-day DM body. Heading auto-pluralises; each
+ * person renders as a 3-line "card" (name / email / role). Multiple
+ * birthdays are separated by a blank line so they don't run together.
+ */
+function buildBirthdayDm(people: ReadonlyArray<BirthdayPerson>): string {
+  const heading =
+    people.length === 1
+      ? `🎂 *Birthday today*`
+      : `🎂 *${people.length} birthdays today*`;
+  const blocks = people.map((p) => {
+    const lines = [`*${p.firstName} ${p.lastName}*`, p.email];
+    const role = fmtRole(p.position, p.department);
+    if (role) lines.push(role);
+    return lines.join("\n");
+  });
+  return [heading, ...blocks].join("\n\n");
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     const expected = process.env["CRON_SECRET"] ?? "";
@@ -57,42 +97,46 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const mmdd = todayMmDd();
     const matches = await db
       .select({
-        id: users.id,
         firstName: users.firstName,
         lastName: users.lastName,
+        email: users.email,
         position: users.position,
         department: users.department,
       })
       .from(users)
       // birthday is stored as YYYY-MM-DD; match by the trailing -MM-DD.
       .where(and(like(users.birthday, `%-${mmdd}`), eq(users.isActive, true)));
-    const errors: Array<{ id: string; error: string }> = [];
-    for (const m of matches) {
-      const lines = [
-        `:birthday: *Vaudit HR* — birthday today!`,
-        `${m.firstName} ${m.lastName} — ${m.position ?? "—"} (${m.department ?? "—"})`,
-        `Drop them a note today.`,
-      ];
+
+    // No birthdays today → no DM, no noise. Audit log still records the
+    // run so a missing day is visible in the audit history.
+    let messageSent = false;
+    const errors: Array<{ error: string }> = [];
+    if (matches.length > 0) {
+      const text = buildBirthdayDm(matches);
       try {
-        await sendSlackDm({ userId: hrSlackUserId, text: lines.join("\n") });
+        await sendSlackDm({ userId: hrSlackUserId, text });
+        messageSent = true;
       } catch (e) {
-        errors.push({
-          id: m.id,
-          error: e instanceof Error ? e.message : "send failed",
-        });
+        errors.push({ error: e instanceof Error ? e.message : "send failed" });
       }
     }
+
     await writeAuditLog({
       actorId: null,
       action: "cron.birthdays_run",
       targetTable: "users",
       targetId: null,
-      metadata: { date: mmdd, matched: matches.length, errors: errors.length },
+      metadata: {
+        date: mmdd,
+        matched: matches.length,
+        messageSent,
+        errors: errors.length,
+      },
     });
     return NextResponse.json({
       date: mmdd,
       matched: matches.length,
-      sent: matches.length - errors.length,
+      sent: messageSent ? 1 : 0,
       errors,
     });
   } catch (err) {
