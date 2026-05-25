@@ -96,8 +96,8 @@ const SEED_USERS: SeedUser[] = [
 const SEED_LEAVE_TYPES: SeedLeaveType[] = [
   {
     name: "Holiday Leave",
-    description: "Holiday leave — 13 days per year",
-    defaultBalance: 26,
+    description: "Holiday leave — 7 days per year (HR-confirmed default)",
+    defaultBalance: 14,
     isPaid: true,
     color: "#f59e0b",
   },
@@ -123,16 +123,22 @@ const SEED_LEAVE_TYPES: SeedLeaveType[] = [
     color: "#10b981",
   },
   {
+    // Gender-based policy: male = 15 days, female = 0. Default is set
+    // to the male max (15 days = 30 half-days); HR zeros it on new
+    // female hires. See migration 0009 for the rationale.
     name: "Paternity",
-    description: "Paternity leave — 120 days per year",
-    defaultBalance: 240,
+    description: "Paternity leave — 15 days per year (zero out for female hires)",
+    defaultBalance: 30,
     isPaid: true,
     color: "#0ea5e9",
   },
   {
+    // Gender-based policy: female = 60 days, male = 0. Default is set
+    // to the female max (60 days = 120 half-days); HR zeros it on new
+    // male hires. See migration 0009 for the rationale.
     name: "Maternity",
-    description: "Maternity leave — 15 days per year",
-    defaultBalance: 30,
+    description: "Maternity leave — 60 days per year (zero out for male hires)",
+    defaultBalance: 120,
     isPaid: true,
     color: "#ec4899",
   },
