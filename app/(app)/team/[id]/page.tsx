@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 
@@ -112,12 +113,12 @@ export default async function TeamMemberPage({
       title={fullName}
       description={row.email}
       breadcrumbs={
-        <a
+        <Link
           href="/team"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to team
-        </a>
+        </Link>
       }
     >
       <div className="space-y-6">

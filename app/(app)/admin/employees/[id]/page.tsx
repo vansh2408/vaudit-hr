@@ -50,12 +50,12 @@ export default async function EditEmployeePage({
       title={`${row.firstName} ${row.lastName}`}
       description={row.email}
       breadcrumbs={
-        <a
+        <Link
           href="/admin/employees"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to employees
-        </a>
+        </Link>
       }
       actions={
         <Button asChild variant="outline" size="sm">

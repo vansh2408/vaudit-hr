@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 
 import { NoAccess } from "@/components/feedback/no-access";
 import { PageShell } from "@/components/layout/page-shell";
@@ -18,12 +19,12 @@ export default async function ImportPage(): Promise<React.JSX.Element> {
       title="Import employees"
       description="Upload a CSV, preview the changes, then commit. Inserts auto-create balances for the current year."
       breadcrumbs={
-        <a
+        <Link
           href="/admin/employees"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to employees
-        </a>
+        </Link>
       }
     >
       <ImportClient />

@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq, gte, lte } from "drizzle-orm";
 
@@ -109,12 +110,12 @@ export default async function WfhDetailPage({
       title="Work from home"
       description={`Submitted by ${row.employeeFirstName} ${row.employeeLastName}`}
       breadcrumbs={
-        <a
+        <Link
           href="/wfh"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to WFH
-        </a>
+        </Link>
       }
     >
       <WfhDetailView

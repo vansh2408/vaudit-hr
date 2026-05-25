@@ -15,6 +15,10 @@
       {
         "selector": "NewExpression[callee.name='Date'][arguments.length=1][arguments.0.type='Literal'][arguments.0.value=/^\\d{4}-\\d{2}-\\d{2}$/]",
         "message": "new Date('YYYY-MM-DD') parses as UTC midnight and breaks in non-UTC zones. Use parseYmd() or ymdToLocalDate() from @/lib/utils/dates."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='a'] > JSXAttribute[name.name='href'] > Literal[value=/^\\//]",
+        "message": "Use <Link> from next/link for internal navigation. Raw <a href='/...'> triggers a full page reload (loses React state, refetches the layout, re-runs auth). Only use <a> for external links (http/mailto/tel)."
       }
     ]
   },

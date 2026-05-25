@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 
@@ -177,12 +178,12 @@ export default async function LeaveDetailPage({
       title="Leave request"
       description={`Submitted by ${row.employeeFirstName} ${row.employeeLastName}`}
       breadcrumbs={
-        <a
+        <Link
           href="/leave"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to leave
-        </a>
+        </Link>
       }
     >
       <LeaveDetailView

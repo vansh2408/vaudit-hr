@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 
 import { NoAccess } from "@/components/feedback/no-access";
 import { PageShell } from "@/components/layout/page-shell";
@@ -18,12 +19,12 @@ export default async function NewEmployeePage(): Promise<React.JSX.Element> {
       title="Add employee"
       description="Pre-stage a user row. They'll sign in via Google when ready."
       breadcrumbs={
-        <a
+        <Link
           href="/admin/employees"
           className="text-muted-foreground hover:text-foreground"
         >
           ← Back to employees
-        </a>
+        </Link>
       }
     >
       <EmployeeForm mode="create" />
